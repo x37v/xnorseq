@@ -1,4 +1,5 @@
-CXXFLAGS = -std=c++11
+CXX = clang++
+CXXFLAGS = -std=c++11 -g -Wall
 
 SRC = sequence.cpp main.cpp
 OBJ = ${SRC:.cpp=.o}

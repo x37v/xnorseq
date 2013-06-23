@@ -14,6 +14,7 @@ namespace xnor {
   typedef Scheduler Parent;
 
   typedef std::function<void(Seq * seq, Parent * parent)> seq_func_t;
+  typedef std::function<bool(Seq * seq, Parent * parent)> seq_periodic_func_t;
   typedef std::shared_ptr<Sched> SchedPtr;
   typedef int seq_tick_t;
 
@@ -56,12 +57,25 @@ namespace xnor {
 
   class PeriodicSched : public Sched, public std::enable_shared_from_this<PeriodicSched> {
     public:
+      PeriodicSched();
+      virtual ~PeriodicSched() { }
       virtual void exec(Seq * seq, Parent * parent);
       virtual void exec_start(Seq * seq, Parent * parent) = 0;
       virtual bool exec_periodic(Seq * seq, Parent * parent) = 0; //true to keep in schedule
       seq_tick_t tick_period() const { return mTickPeriod; }
     private:
       seq_tick_t mTickPeriod = 1;
+      seq_func_t mPeriodicEval = nullptr;
+  };
+
+  class PeriodicSchedFunc : public PeriodicSched {
+    public:
+      PeriodicSchedFunc(seq_periodic_func_t periodic_func, seq_func_t start_func = seq_func_t());
+      virtual void exec_start(Seq * seq, Parent * parent);
+      virtual bool exec_periodic(Seq * seq, Parent * parent);
+    private:
+      seq_func_t mStartFunc = nullptr;
+      seq_periodic_func_t mPeriodicFunc = nullptr;
   };
 
   class Scheduler {
@@ -108,6 +122,8 @@ namespace xnor {
 
       void tick();
     private:
+      virtual void tick(Seq *s);
+
       std::list<std::pair<seq_tick_t, SchedPtr> > mSeqAbsolute;
       seq_tick_t mTicksAbsolute = 0;
   };

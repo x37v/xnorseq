@@ -37,15 +37,32 @@ namespace xnor {
       mEndFunc(seq, parent);
   }
 
+  PeriodicSched::PeriodicSched() { }
+
   void PeriodicSched::exec(Seq * seq, Parent * parent) {
     exec_start(seq, parent);
-    auto ref = shared_from_this(); 
-    seq_func_t func = [ref, &func](Seq * s, Parent * p) {
-      if (ref->exec_periodic(s, p))
-        s->schedule_absolute(ref->tick_period(), func);
-    };
+    if (!mPeriodicEval) {
+      auto ref = shared_from_this(); 
+      mPeriodicEval = [ref, this](Seq * s, Parent * p) {
+        if (ref->exec_periodic(s, p))
+          s->schedule_absolute(ref->tick_period(), this->mPeriodicEval);
+      };
+    }
+    seq->schedule_absolute(mTickPeriod, mPeriodicEval);
+  }
 
-    seq->schedule_absolute(mTickPeriod, func);
+  PeriodicSchedFunc::PeriodicSchedFunc(seq_periodic_func_t periodic_func, seq_func_t start_func) :
+    mStartFunc(start_func), mPeriodicFunc(periodic_func)
+  {
+  }
+
+  void PeriodicSchedFunc::exec_start(Seq * seq, Parent * parent) {
+    if (mStartFunc)
+      mStartFunc(seq, parent);
+  }
+
+  bool PeriodicSchedFunc::exec_periodic(Seq * seq, Parent * parent) {
+    return mPeriodicFunc(seq, parent);
   }
 
   Scheduler::Scheduler() { }
@@ -97,6 +114,7 @@ namespace xnor {
 
   bool Group::exec_periodic(Seq * seq, Parent * parent) {
     tick(seq);
+    return true; //XXX fix
   }
 
   Seq::Seq() { }
@@ -124,7 +142,7 @@ namespace xnor {
   }
 
   void Seq::schedule_absolute(double seconds_from_now, SchedPtr sched) {
-    unsigned int milliseconds = static_cast<unsigned int>(seconds_from_now * 1000.0);
+    //unsigned int milliseconds = static_cast<unsigned int>(seconds_from_now * 1000.0);
     //XXX do it!
   }
 
@@ -133,6 +151,10 @@ namespace xnor {
     return schedule_absolute(seconds_from_now, sched);
   }
 
+
+  void Seq::tick(Seq *s) {
+    tick();
+  }
 
   void Seq::tick() {
     Scheduler::tick(this);
