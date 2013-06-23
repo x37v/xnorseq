@@ -7,16 +7,19 @@
 #include <memory>
 
 namespace xnor {
-  class Sequence;
+  class Seq;
+  class Scheduler;
+  class Group;
   class Sched;
+  typedef Scheduler Parent;
 
-  typedef std::function<void(Sequence * seq)> seq_func_t;
+  typedef std::function<void(Seq * seq, Parent * parent)> seq_func_t;
   typedef std::shared_ptr<Sched> SchedPtr;
   typedef int seq_tick_t;
 
   class Sched {
     public:
-      virtual void exec(Sequence * seq) = 0;
+      virtual void exec(Seq * seq, Parent * parent) = 0;
       virtual ~Sched() {}
   };
 
@@ -24,7 +27,7 @@ namespace xnor {
     public:
       SchedFunc(seq_func_t func);
       virtual ~SchedFunc() {}
-      virtual void exec(Sequence * seq);
+      virtual void exec(Seq * seq, Parent * parent);
     private:
       seq_func_t mFunc;
   };
@@ -33,9 +36,9 @@ namespace xnor {
     public:
       StartEndSched(seq_tick_t end_offset);
       virtual ~StartEndSched() {}
-      virtual void exec(Sequence * seq);
-      virtual void exec_start(Sequence * seq) = 0;
-      virtual void exec_end(Sequence * seq) = 0;
+      virtual void exec(Seq * seq, Parent * parent);
+      virtual void exec_start(Seq * seq, Parent * parent) = 0;
+      virtual void exec_end(Seq * seq, Parent * parent) = 0;
     private:
       seq_tick_t mEndOffset;
   };
@@ -44,20 +47,57 @@ namespace xnor {
     public:
       StartEndSchedFunc(seq_tick_t end_offset, seq_func_t start_func, seq_func_t end_func);
       virtual ~StartEndSchedFunc() {}
-      virtual void exec_start(Sequence * seq);
-      virtual void exec_end(Sequence * seq);
+      virtual void exec_start(Seq * seq, Parent * parent);
+      virtual void exec_end(Seq * seq, Parent * parent);
     private:
       seq_func_t mStartFunc;
       seq_func_t mEndFunc;
   };
 
-  class Sequence {
+  class PeriodicSched : public Sched, public std::enable_shared_from_this<PeriodicSched> {
     public:
-      Sequence();
+      virtual void exec(Seq * seq, Parent * parent);
+      virtual void exec_start(Seq * seq, Parent * parent) = 0;
+      virtual bool exec_periodic(Seq * seq, Parent * parent) = 0; //true to keep in schedule
+      seq_tick_t tick_period() const { return mTickPeriod; }
+    private:
+      seq_tick_t mTickPeriod = 1;
+  };
+
+  class Scheduler {
+    public:
+      Scheduler();
+      virtual ~Scheduler() {}
 
       //schedule at time location given
       seq_tick_t schedule(seq_tick_t location, SchedPtr sched, bool push_front = false);
       seq_tick_t schedule(seq_tick_t location, seq_func_t func, bool push_front = false);
+
+      virtual void tick(Seq * seq);
+
+      void clear();
+
+      virtual void locate(seq_tick_t location);
+      seq_tick_t location() const { return mCurrentLocation; }
+    private:
+      std::map<seq_tick_t, std::list<SchedPtr> > mSchedule;
+      seq_tick_t mCurrentLocation = 0;
+  };
+
+  class Group : public Scheduler, public PeriodicSched {
+    public:
+      Group();
+      virtual ~Group() {}
+
+      virtual void exec_start(Seq * seq, Parent * parent);
+      virtual bool exec_periodic(Seq * seq, Parent * parent);
+
+  };
+
+  class Seq : public Scheduler {
+    public:
+      Seq();
+      virtual ~Seq() {}
 
       //schedule to happen tick_offset or seconds from now, happens even if main schedule jumps
       void schedule_absolute(seq_tick_t tick_offset, SchedPtr sched);
@@ -67,16 +107,8 @@ namespace xnor {
       void schedule_absolute(double seconds_from_now, seq_func_t func);
 
       void tick();
-
-      void clear();
-
-      void locate(seq_tick_t location);
-      seq_tick_t location() const { return mCurrentLocation; }
     private:
-      std::map<seq_tick_t, std::list<SchedPtr> > mSeq;
       std::list<std::pair<seq_tick_t, SchedPtr> > mSeqAbsolute;
-
-      seq_tick_t mCurrentLocation = 0;
       seq_tick_t mTicksAbsolute = 0;
   };
 }

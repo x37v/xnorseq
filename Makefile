@@ -1,6 +1,6 @@
 CXXFLAGS = -std=c++11
 
-SRC = sequence.cpp
+SRC = sequence.cpp main.cpp
 OBJ = ${SRC:.cpp=.o}
 
 .cpp.o:

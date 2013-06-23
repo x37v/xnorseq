@@ -1,16 +1,11 @@
 #include "sequence.h"
 
-#include <iostream>
-using std::cout;
-using std::endl;
-
-
 namespace xnor {
   SchedFunc::SchedFunc(seq_func_t func) : mFunc(func) { }
 
-  void SchedFunc::exec(Sequence * seq) {
+  void SchedFunc::exec(Seq * seq, Parent * parent) {
     if (mFunc)
-      mFunc(seq);
+      mFunc(seq, parent);
   }
 
   StartEndSched::StartEndSched(seq_tick_t end_offset) :
@@ -19,11 +14,11 @@ namespace xnor {
   {
   }
 
-  void StartEndSched::exec(Sequence * seq) {
-    exec_start(seq);
+  void StartEndSched::exec(Seq * seq, Parent * parent) {
+    exec_start(seq, parent);
     //save a reference so that we don't dealloc before we exec end
     auto ref = shared_from_this(); 
-    seq->schedule_absolute(mEndOffset, [ref](Sequence * s) { ref->exec_end(s); });
+    seq->schedule_absolute(mEndOffset, [ref](Seq * s, Parent * p) { ref->exec_end(s, p); });
   }
 
   StartEndSchedFunc::StartEndSchedFunc(seq_tick_t end_offset, seq_func_t start_func, seq_func_t end_func) :
@@ -32,21 +27,32 @@ namespace xnor {
   {
   }
 
-  void StartEndSchedFunc::exec_start(Sequence * seq) {
+  void StartEndSchedFunc::exec_start(Seq * seq, Parent * parent) {
     if (mStartFunc)
-      mStartFunc(seq);
+      mStartFunc(seq, parent);
   }
 
-  void StartEndSchedFunc::exec_end(Sequence * seq) {
+  void StartEndSchedFunc::exec_end(Seq * seq, Parent * parent) {
     if (mEndFunc)
-      mEndFunc(seq);
+      mEndFunc(seq, parent);
   }
 
-  Sequence::Sequence() { }
+  void PeriodicSched::exec(Seq * seq, Parent * parent) {
+    exec_start(seq, parent);
+    auto ref = shared_from_this(); 
+    seq_func_t func = [ref, &func](Seq * s, Parent * p) {
+      if (ref->exec_periodic(s, p))
+        s->schedule_absolute(ref->tick_period(), func);
+    };
 
-  seq_tick_t Sequence::schedule(seq_tick_t location, SchedPtr sched, bool push_front) {
-    auto loc = mSeq.find(location);
-    if (loc != mSeq.end()) {
+    seq->schedule_absolute(mTickPeriod, func);
+  }
+
+  Scheduler::Scheduler() { }
+
+  seq_tick_t Scheduler::schedule(seq_tick_t location, SchedPtr sched, bool push_front) {
+    auto loc = mSchedule.find(location);
+    if (loc != mSchedule.end()) {
       if (push_front)
         loc->second.push_front(sched);
       else
@@ -57,17 +63,45 @@ namespace xnor {
         list.push_front(sched);
       else
         list.push_back(sched);
-      mSeq[location] = list;
+      mSchedule[location] = list;
     }
     return 0; //XXX return some reference so we can remove the item
   }
 
-  seq_tick_t Sequence::schedule(seq_tick_t location, seq_func_t func, bool push_front) {
+  seq_tick_t Scheduler::schedule(seq_tick_t location, seq_func_t func, bool push_front) {
     SchedPtr sched(new SchedFunc(func));
     return schedule(location, sched, push_front);
   }
 
-  void Sequence::schedule_absolute(seq_tick_t tick_offset, SchedPtr sched) {
+  void Scheduler::tick(Seq * seq) {
+    auto cur = mSchedule.find(mCurrentLocation);
+    mCurrentLocation++;
+
+    if (cur != mSchedule.end()) {
+      for (auto f: cur->second)
+        f->exec(seq, this);
+    }
+  }
+
+  void Scheduler::clear() {
+    mSchedule.clear();
+  }
+
+  void Scheduler::locate(seq_tick_t location) {
+    mCurrentLocation = location;
+  }
+
+  void Group::exec_start(Seq * seq, Parent * parent) {
+    locate(0);
+  }
+
+  bool Group::exec_periodic(Seq * seq, Parent * parent) {
+    tick(seq);
+  }
+
+  Seq::Seq() { }
+
+  void Seq::schedule_absolute(seq_tick_t tick_offset, SchedPtr sched) {
     seq_tick_t pos = tick_offset + mTicksAbsolute;
     auto item = std::make_pair(pos, sched);
     if (mSeqAbsolute.empty() || mSeqAbsolute.back().first < pos)
@@ -84,80 +118,30 @@ namespace xnor {
     }
   }
 
-  void Sequence::schedule_absolute(seq_tick_t tick_offset, seq_func_t func) {
+  void Seq::schedule_absolute(seq_tick_t tick_offset, seq_func_t func) {
     SchedPtr sched(new SchedFunc(func));
     return schedule_absolute(tick_offset, sched);
   }
 
-  void Sequence::schedule_absolute(double seconds_from_now, SchedPtr sched) {
+  void Seq::schedule_absolute(double seconds_from_now, SchedPtr sched) {
     unsigned int milliseconds = static_cast<unsigned int>(seconds_from_now * 1000.0);
     //XXX do it!
   }
 
-  void Sequence::schedule_absolute(double seconds_from_now, seq_func_t func) {
+  void Seq::schedule_absolute(double seconds_from_now, seq_func_t func) {
     SchedPtr sched(new SchedFunc(func));
     return schedule_absolute(seconds_from_now, sched);
   }
 
 
-  void Sequence::tick() {
-    auto cur = mSeq.find(mCurrentLocation);
-    mCurrentLocation++;
-
-    if (cur != mSeq.end()) {
-      for (auto f: cur->second)
-        f->exec(this);
-    }
+  void Seq::tick() {
+    Scheduler::tick(this);
     for (auto it = mSeqAbsolute.begin(); it != mSeqAbsolute.end(); it++) {
       if (it->first > mTicksAbsolute)
         break;
-      it->second->exec(this);
+      it->second->exec(this, this);
       it = mSeqAbsolute.erase(it);
     }
-
     mTicksAbsolute++;
-  }
-
-  void Sequence::clear() {
-    mSeq.clear();
-  }
-
-  void Sequence::locate(seq_tick_t location) {
-    mCurrentLocation = location;
-  }
-}
-
-class Rando {
-  public:
-    void exec(xnor::Sequence * s) {
-      cout << "rando exec" << endl;
-    }
-};
-
-int main(int argc, char * argv[]) {
-  xnor::Sequence seq;
-  auto s = [](xnor::Sequence * s) {
-    cout << "start func" << endl;
-  };
-
-  auto e = [](xnor::Sequence * s) {
-    cout << "end func" << endl;
-  };
-
-  {
-    xnor::SchedPtr p(new xnor::StartEndSchedFunc(2, s, e));
-    seq.schedule(2, p);
-  }
-
-  seq.schedule(5, [](xnor::Sequence *s) { s->locate(2); });
-
-  Rando r;
-  seq.schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1));
-
-  for (int i = 0; i < 20; i++) {
-    cout << i << endl;
-    if (i == 8)
-      seq.clear();
-    seq.tick();
   }
 }
