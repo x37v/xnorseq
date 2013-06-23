@@ -1,6 +1,16 @@
 #include "sequence.h"
+#include <atomic>
+#include <algorithm>
+
+namespace {
+  std::atomic<xnor::sched_id_t> sched_id_cnt = ATOMIC_VAR_INIT(0);
+}
 
 namespace xnor {
+  Sched::Sched() {
+    mID = sched_id_cnt++;
+  }
+
   SchedFunc::SchedFunc(seq_func_t func) : mFunc(func) { }
 
   void SchedFunc::exec(Seq * seq, Parent * parent) {

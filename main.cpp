@@ -14,7 +14,6 @@ class Rando {
 int main(int argc, char * argv[]) {
   xnor::Seq seq;
 
-
   {
     auto s = [](xnor::Seq * s, xnor::Parent * p) {
       cout << "start func" << endl;
@@ -30,12 +29,10 @@ int main(int argc, char * argv[]) {
     seq.schedule(4, p);
   }
 
-  /*
-  seq.schedule(5, [](xnor::Seq *s, xnor::Parent *parent) { s->locate(2); });
+  seq.schedule(5, [](xnor::Seq *s, xnor::Parent *parent) { s->locate(1); });
 
   Rando r;
   seq.schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1, std::placeholders::_2));
-  */
 
   auto start = [](xnor::Seq * s, xnor::Parent *p) {
     cout << "start periodic" << endl;
@@ -50,7 +47,7 @@ int main(int argc, char * argv[]) {
   };
 
   xnor::SchedPtr periodic(new xnor::PeriodicSchedFunc(pfunc, start));
-  seq.schedule(0, periodic);
+  seq.schedule(1, periodic);
 
   for (int i = 0; i < 20; i++) {
     cout << i << endl;

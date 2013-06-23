@@ -17,11 +17,16 @@ namespace xnor {
   typedef std::function<bool(Seq * seq, Parent * parent)> seq_periodic_func_t;
   typedef std::shared_ptr<Sched> SchedPtr;
   typedef int seq_tick_t;
+  typedef unsigned int sched_id_t;
 
   class Sched {
     public:
+      Sched();
       virtual void exec(Seq * seq, Parent * parent) = 0;
       virtual ~Sched() {}
+      sched_id_t id() const;
+    private:
+      sched_id_t mID;
   };
 
   class SchedFunc : public Sched {
