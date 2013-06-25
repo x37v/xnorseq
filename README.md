@@ -3,7 +3,7 @@ xnorseq
 
 Sequencer in progress
 
-using c++11.. not likely to be real-time safe
+using c++11.. not likely to be real-time safe, ever
 
 
 Schedules/Groups should not contain tick state, they should just contain the
