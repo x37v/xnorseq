@@ -39,7 +39,7 @@ int main(int argc, char * argv[]) {
   };
 
   int count = 0;
-  auto pfunc = [&count](xnor::Seq * s, xnor::Parent * p) {
+  auto pfunc = [&count](xnor::Seq * s, xnor::Parent * p) -> bool {
     cout << "periodic: " << count << endl;
     if (count++ > 3)
       return false;
