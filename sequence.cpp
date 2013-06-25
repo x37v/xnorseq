@@ -2,6 +2,10 @@
 #include <atomic>
 #include <algorithm>
 
+#include <iostream>
+using std::cerr;
+using std::endl;
+
 namespace {
   std::atomic<xnor::sched_id_t> sched_id_cnt = ATOMIC_VAR_INIT(0);
 }
@@ -75,9 +79,9 @@ namespace xnor {
     return mPeriodicFunc(seq, parent);
   }
 
-  Scheduler::Scheduler() { }
+  Schedule::Schedule() { }
 
-  seq_tick_t Scheduler::schedule(seq_tick_t location, SchedPtr sched, bool push_front) {
+  seq_tick_t Schedule::schedule(seq_tick_t location, SchedPtr sched, bool push_front) {
     auto loc = mSchedule.find(location);
     if (loc != mSchedule.end()) {
       if (push_front)
@@ -95,39 +99,68 @@ namespace xnor {
     return 0; //XXX return some reference so we can remove the item
   }
 
-  seq_tick_t Scheduler::schedule(seq_tick_t location, seq_func_t func, bool push_front) {
+  seq_tick_t Schedule::schedule(seq_tick_t location, seq_func_t func, bool push_front) {
     SchedPtr sched(new SchedFunc(func));
     return schedule(location, sched, push_front);
   }
 
-  void Scheduler::tick(Seq * seq) {
-    auto cur = mSchedule.find(mCurrentLocation);
-    mCurrentLocation++;
+  void Schedule::clear() {
+    mSchedule.clear();
+  }
 
-    if (cur != mSchedule.end()) {
+  SchedulePlayer::SchedulePlayer(SchedulePtr schedule) :
+    mSchedule(schedule)
+  {
+  }
+
+  SchedulePlayer::SchedulePlayer() {
+  }
+
+  void SchedulePlayer::schedule(SchedulePtr schedule) {
+    mSchedule = schedule;
+  }
+
+  void SchedulePlayer::locate(seq_tick_t location) {
+    mCurrentLocation = location;
+  }
+
+  void SchedulePlayer::exec_start(Seq * seq, Parent * parent) {
+    locate(0);
+  }
+
+  bool SchedulePlayer::exec_periodic(Seq * seq, Parent * parent) {
+    tick(seq);
+    return true; //XXX fix
+  }
+
+  void SchedulePlayer::tick(Seq * seq) {
+    if (!mSchedule)
+      return;
+
+    auto cur = mSchedule->list().find(mCurrentLocation);
+    mCurrentLocation++;
+    if (cur != mSchedule->list().end()) {
       for (auto f: cur->second)
         f->exec(seq, this);
     }
   }
 
-  void Scheduler::clear() {
-    mSchedule.clear();
+  Seq::Seq() : SchedulePlayer() {
+    mSchedule = SchedulePtr(new Schedule);
+    SchedulePlayer::schedule(mSchedule);
   }
 
-  void Scheduler::locate(seq_tick_t location) {
-    mCurrentLocation = location;
+  seq_tick_t Seq::schedule(seq_tick_t location, SchedPtr sched, bool push_front) {
+    return mSchedule->schedule(location, sched, push_front);
   }
 
-  void Group::exec_start(Seq * seq, Parent * parent) {
-    locate(0);
+  seq_tick_t Seq::schedule(seq_tick_t location, seq_func_t func, bool push_front) {
+    return mSchedule->schedule(location, func, push_front);
   }
 
-  bool Group::exec_periodic(Seq * seq, Parent * parent) {
-    tick(seq);
-    return true; //XXX fix
+  void Seq::clear() {
+    mSchedule->clear();
   }
-
-  Seq::Seq() { }
 
   void Seq::schedule_absolute(seq_tick_t tick_offset, SchedPtr sched) {
     seq_tick_t pos = tick_offset + mTicksAbsolute;
@@ -161,13 +194,8 @@ namespace xnor {
     return schedule_absolute(seconds_from_now, sched);
   }
 
-
-  void Seq::tick(Seq *s) {
-    tick();
-  }
-
   void Seq::tick() {
-    Scheduler::tick(this);
+    SchedulePlayer::tick(this);
     for (auto it = mSeqAbsolute.begin(); it != mSeqAbsolute.end(); it++) {
       if (it->first > mTicksAbsolute)
         break;

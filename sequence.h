@@ -8,14 +8,15 @@
 
 namespace xnor {
   class Seq;
-  class Scheduler;
-  class Group;
+  class Schedule;
   class Sched;
-  typedef Scheduler Parent;
+  class SchedulePlayer;
 
+  typedef SchedulePlayer Parent;
   typedef std::function<void(Seq * seq, Parent * parent)> seq_func_t;
   typedef std::function<bool(Seq * seq, Parent * parent)> seq_periodic_func_t;
   typedef std::shared_ptr<Sched> SchedPtr;
+  typedef std::shared_ptr<Schedule> SchedulePtr;
   typedef int seq_tick_t;
   typedef unsigned int sched_id_t;
 
@@ -83,40 +84,57 @@ namespace xnor {
       seq_periodic_func_t mPeriodicFunc = nullptr;
   };
 
-  class Scheduler {
+  class Schedule {
     public:
-      Scheduler();
-      virtual ~Scheduler() {}
+      typedef std::map<seq_tick_t, std::list<SchedPtr> > schedule_list_t;
+
+      Schedule();
+      virtual ~Schedule() {}
 
       //schedule at time location given
       seq_tick_t schedule(seq_tick_t location, SchedPtr sched, bool push_front = false);
       seq_tick_t schedule(seq_tick_t location, seq_func_t func, bool push_front = false);
 
-      virtual void tick(Seq * seq);
-
       void clear();
 
-      virtual void locate(seq_tick_t location);
-      seq_tick_t location() const { return mCurrentLocation; }
+      schedule_list_t& list() { return mSchedule; }
     private:
-      std::map<seq_tick_t, std::list<SchedPtr> > mSchedule;
-      seq_tick_t mCurrentLocation = 0;
+      schedule_list_t mSchedule;
   };
 
-  class Group : public Scheduler, public PeriodicSched {
+  class SchedulePlayer : public PeriodicSched {
     public:
-      Group();
-      virtual ~Group() {}
+      SchedulePlayer(SchedulePtr schedule);
 
       virtual void exec_start(Seq * seq, Parent * parent);
       virtual bool exec_periodic(Seq * seq, Parent * parent);
 
+      virtual void locate(seq_tick_t location);
+      seq_tick_t location() const { return mCurrentLocation; }
+
+      SchedulePtr schedule() { return mSchedule; }
+
+    protected:
+      SchedulePlayer();
+      void schedule(SchedulePtr schedule);
+
+      void tick(Seq * seq);
+      SchedulePtr mSchedule;
+
+    private:
+      seq_tick_t mCurrentLocation = 0;
   };
 
-  class Seq : public Scheduler {
+  class Seq : public SchedulePlayer {
     public:
       Seq();
       virtual ~Seq() {}
+
+      //schedule at time location given
+      seq_tick_t schedule(seq_tick_t location, SchedPtr sched, bool push_front = false);
+      seq_tick_t schedule(seq_tick_t location, seq_func_t func, bool push_front = false);
+
+      void clear();
 
       //schedule to happen tick_offset or seconds from now, happens even if main schedule jumps
       void schedule_absolute(seq_tick_t tick_offset, SchedPtr sched);
@@ -127,7 +145,7 @@ namespace xnor {
 
       void tick();
     private:
-      virtual void tick(Seq *s);
+      SchedulePtr mSchedule;
 
       std::list<std::pair<seq_tick_t, SchedPtr> > mSeqAbsolute;
       seq_tick_t mTicksAbsolute = 0;
