@@ -8,7 +8,7 @@ OBJ = ${SRC:.cpp=.o}
 	${CXX} -c ${CXXFLAGS} -o $*.o $<
 
 seq: ${OBJ}
-	${CXX} -o seq ${OBJ}
+	${CXX} ${CXXFLAGS} -o seq ${OBJ}
 
 clean:
 	rm -rf seq ${OBJ}
