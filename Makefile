@@ -1,6 +1,10 @@
 CXX = clang++
-#CXXFLAGS = -std=c++11 -g -Wall -stdlib=libc++
+
+#LINUX
 CXXFLAGS = -std=c++11 -g -Wall
+
+#OSX
+#CXXFLAGS = -std=c++11 -g -Wall -stdlib=libc++
 
 SRC = sequence.cpp main.cpp
 OBJ = ${SRC:.cpp=.o}
