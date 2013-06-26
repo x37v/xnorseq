@@ -23,7 +23,7 @@ int main(int argc, char * argv[]) {
       cout << "end func" << endl;
     };
 
-    auto p = std::make_shared<xnor::StartEndSchedFunc>(1, s, e);
+    xnor::SchedPtr p = std::make_shared<xnor::StartEndSchedFunc>(1, s, e);
     seq.schedule(2, p);
     seq.schedule(3, p);
     seq.schedule(4, p);
@@ -46,7 +46,7 @@ int main(int argc, char * argv[]) {
     return true;
   };
 
-  auto periodic = std::make_shared<xnor::PeriodicSchedFunc>(pfunc, start);
+  xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc>(pfunc, start);
   seq.schedule(1, periodic);
 
   for (int i = 0; i < 20; i++) {
