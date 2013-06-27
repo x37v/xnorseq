@@ -8,9 +8,29 @@ using std::endl;
 
 namespace {
   std::atomic<xnor::sched_id_t> sched_id_cnt = ATOMIC_VAR_INIT(0);
+
 }
 
 namespace xnor {
+  namespace {
+    class PeriodicEvaluator : public Sched, public std::enable_shared_from_this<PeriodicEvaluator> {
+      public:
+        PeriodicEvaluator(std::shared_ptr<PeriodicSched> periodic) {
+          mPeriodic = periodic;
+        }
+
+        virtual void exec(Seq * seq, Parent * parent) {
+          if (mPeriodic->exec_periodic(seq, parent)) {
+            SchedPtr ref = shared_from_this();
+            seq->schedule_absolute(mPeriodic->tick_period(), ref);
+          } else {
+            mPeriodic->exec_end(seq, parent);
+          }
+        }
+      private:
+        std::shared_ptr<PeriodicSched> mPeriodic;
+    };
+  }
   Sched::Sched() {
     mID = sched_id_cnt++;
   }
@@ -29,10 +49,8 @@ namespace xnor {
   }
 
   void StartEndSched::exec(Seq * seq, Parent * parent) {
-    exec_start(seq, parent);
-    //save a reference so that we don't dealloc before we exec end
-    auto ref = shared_from_this(); 
-    seq->schedule_absolute(mEndOffset, [ref](Seq * s, Parent * p) { ref->exec_end(s, p); });
+    auto end_obj = exec_start(seq, parent);
+    seq->schedule_absolute(mEndOffset, end_obj);
   }
 
   StartEndSchedFunc::StartEndSchedFunc(seq_tick_t end_offset, seq_func_t start_func, seq_func_t end_func) :
@@ -41,32 +59,25 @@ namespace xnor {
   {
   }
 
-  void StartEndSchedFunc::exec_start(Seq * seq, Parent * parent) {
+  SchedPtr StartEndSchedFunc::exec_start(Seq * seq, Parent * parent) {
     if (mStartFunc)
       mStartFunc(seq, parent);
+    return SchedPtr(new SchedFunc(mEndFunc));
   }
-
-  void StartEndSchedFunc::exec_end(Seq * seq, Parent * parent) {
-    if (mEndFunc)
-      mEndFunc(seq, parent);
-  }
-
-  PeriodicSched::PeriodicSched() { }
 
   void PeriodicSched::exec(Seq * seq, Parent * parent) {
-    exec_start(seq, parent);
-    if (!mPeriodicEval) {
-      auto ref = shared_from_this(); 
-      mPeriodicEval = [ref, this](Seq * s, Parent * p) {
-        if (ref->exec_periodic(s, p))
-          s->schedule_absolute(ref->tick_period(), this->mPeriodicEval);
-      };
-    }
-    seq->schedule_absolute(mTickPeriod, mPeriodicEval);
+    std::shared_ptr<PeriodicSched> ref(clone());
+    SchedPtr e(new PeriodicEvaluator(ref));
+    ref->exec_start(seq, parent);
+    seq->schedule_absolute(ref->tick_period(), e);
   }
 
-  PeriodicSchedFunc::PeriodicSchedFunc(seq_periodic_func_t periodic_func, seq_func_t start_func) :
-    mStartFunc(start_func), mPeriodicFunc(periodic_func)
+  //by default, do nothing
+  void PeriodicSched::exec_start(Seq * seq, Parent * parent) { }
+  void PeriodicSched::exec_end(Seq * seq, Parent * parent) { }
+
+  PeriodicSchedFunc::PeriodicSchedFunc(seq_periodic_func_t periodic_func, seq_func_t start_func, seq_func_t end_func) :
+    mStartFunc(start_func), mEndFunc(end_func), mPeriodicFunc(periodic_func)
   {
   }
 
@@ -75,8 +86,17 @@ namespace xnor {
       mStartFunc(seq, parent);
   }
 
+  void PeriodicSchedFunc::exec_end(Seq * seq, Parent * parent) {
+    if (mEndFunc)
+      mEndFunc(seq, parent);
+  }
+
   bool PeriodicSchedFunc::exec_periodic(Seq * seq, Parent * parent) {
     return mPeriodicFunc(seq, parent);
+  }
+
+  PeriodicSched * PeriodicSchedFunc::clone() {
+    return static_cast<PeriodicSched *>(new PeriodicSchedFunc(*this));
   }
 
   Schedule::Schedule() { }

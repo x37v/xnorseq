@@ -39,13 +39,13 @@ namespace xnor {
       seq_func_t mFunc;
   };
 
-  class StartEndSched : public Sched, public std::enable_shared_from_this<StartEndSched> {
+  class StartEndSched : public Sched {
     public:
       StartEndSched(seq_tick_t end_offset);
       virtual ~StartEndSched() {}
       virtual void exec(Seq * seq, Parent * parent);
-      virtual void exec_start(Seq * seq, Parent * parent) = 0;
-      virtual void exec_end(Seq * seq, Parent * parent) = 0;
+      //return a new Sched object who's 'exec' will be called after end_offset
+      virtual SchedPtr exec_start(Seq * seq, Parent * parent) = 0;
     private:
       seq_tick_t mEndOffset;
   };
@@ -54,33 +54,46 @@ namespace xnor {
     public:
       StartEndSchedFunc(seq_tick_t end_offset, seq_func_t start_func, seq_func_t end_func);
       virtual ~StartEndSchedFunc() {}
-      virtual void exec_start(Seq * seq, Parent * parent);
-      virtual void exec_end(Seq * seq, Parent * parent);
+      virtual SchedPtr exec_start(Seq * seq, Parent * parent);
     private:
       seq_func_t mStartFunc;
       seq_func_t mEndFunc;
   };
 
-  class PeriodicSched : public Sched, public std::enable_shared_from_this<PeriodicSched> {
+  class PeriodicSched : public Sched {
     public:
-      PeriodicSched();
-      virtual ~PeriodicSched() { }
       virtual void exec(Seq * seq, Parent * parent);
-      virtual void exec_start(Seq * seq, Parent * parent) = 0;
-      virtual bool exec_periodic(Seq * seq, Parent * parent) = 0; //true to keep in schedule
+
+      virtual void exec_start(Seq * seq, Parent * parent); //default, do nothing
+      virtual void exec_end(Seq * seq, Parent * parent); //default, do nothing
+
+      //true to keep in schedule
+      virtual bool exec_periodic(Seq * seq, Parent * parent) = 0;
+
       seq_tick_t tick_period() const { return mTickPeriod; }
+
+      //the actual periodic evaluation happens on a copy
+      //so you must create a clone method
+      //the copy can store and modify its state
+      //but make sure its exec_periodic eventually returns false
+      virtual PeriodicSched * clone() = 0;
     private:
       seq_tick_t mTickPeriod = 1;
-      seq_func_t mPeriodicEval = nullptr;
   };
 
+  //dangerous, make sure that you use with care..
   class PeriodicSchedFunc : public PeriodicSched {
     public:
-      PeriodicSchedFunc(seq_periodic_func_t periodic_func, seq_func_t start_func = seq_func_t());
+      PeriodicSchedFunc(seq_periodic_func_t periodic_func, seq_func_t start_func = seq_func_t(), seq_func_t end_func = seq_func_t());
+
       virtual void exec_start(Seq * seq, Parent * parent);
+      virtual void exec_end(Seq * seq, Parent * parent);
       virtual bool exec_periodic(Seq * seq, Parent * parent);
+
+      virtual PeriodicSched * clone();
     private:
       seq_func_t mStartFunc = nullptr;
+      seq_func_t mEndFunc = nullptr;
       seq_periodic_func_t mPeriodicFunc = nullptr;
   };
 
@@ -102,7 +115,7 @@ namespace xnor {
       schedule_list_t mSchedule;
   };
 
-  class SchedulePlayer : public PeriodicSched {
+  class SchedulePlayer {
     public:
       SchedulePlayer(SchedulePtr schedule);
 
