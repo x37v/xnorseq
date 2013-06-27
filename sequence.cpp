@@ -36,6 +36,35 @@ namespace xnor {
         std::shared_ptr<PeriodicSched> mPeriodic;
         sched_id_t mParentID;
     };
+
+    class GroupPlayer : public PeriodicSched {
+      public:
+        GroupPlayer(SchedulePtr schedule) :
+          mPlayer(new SchedulePlayer(schedule)) {
+          }
+
+        virtual void exec_start(Seq * seq, Parent * parent) {
+          mParentOffset = parent->location();
+          mPlayer->locate(0);
+        }
+
+        virtual void exec_end(Seq * seq, Parent * parent) {
+          //XXX remove dependents
+        }
+
+        virtual bool exec_periodic(Seq * seq, Parent * parent) {
+          mPlayer->tick(seq);
+          seq_tick_t parent_loc = mPlayer->location() + mParentOffset;
+          return parent_loc > parent->location() && mParentOffset + mPlayer->schedule()->length() < parent->location();
+        }
+
+        virtual PeriodicSched * clone() {
+          return static_cast<PeriodicSched *>(new GroupPlayer(*this));
+        }
+      private:
+        SchedulePlayerPtr mPlayer;
+        seq_tick_t mParentOffset = 0;
+    };
   }
 
   Sched::Sched() {
@@ -135,6 +164,13 @@ namespace xnor {
     return schedule(location, sched, push_front);
   }
 
+  seq_tick_t Schedule::length() const {
+    //XXX fix for items that have length
+    if (mSchedule.empty())
+      return 0;
+    return mSchedule.rbegin()->first;
+  }
+
   void Schedule::clear() {
     mSchedule.clear();
   }
@@ -165,6 +201,26 @@ namespace xnor {
       for (auto f: cur->second)
         f->exec(seq, this);
     }
+  }
+
+  Group::Group() :
+    mSchedule(new Schedule)
+  {
+  }
+
+  void Group::exec(Seq * seq, Parent * parent) {
+    //create player and add dependencies
+    std::shared_ptr<GroupPlayer> player(new GroupPlayer(mSchedule));
+    seq->add_dependency(id(), player->id());
+    player->exec(seq, parent);
+  }
+
+  seq_tick_t Group::schedule(seq_tick_t location, SchedPtr sched, bool push_front) {
+    return mSchedule->schedule(location, sched, push_front);
+  }
+
+  seq_tick_t Group::schedule(seq_tick_t location, seq_func_t func, bool push_front) {
+    return mSchedule->schedule(location, func, push_front);
   }
 
   Seq::Seq() : SchedulePlayer() {

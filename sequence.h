@@ -11,6 +11,7 @@ namespace xnor {
   class Schedule;
   class Sched;
   class SchedulePlayer;
+  class Group;
 
   typedef SchedulePlayer Parent;
   typedef std::function<void(Seq * seq, Parent * parent)> seq_func_t;
@@ -18,6 +19,7 @@ namespace xnor {
   typedef std::shared_ptr<Sched> SchedPtr;
   typedef std::shared_ptr<Schedule> SchedulePtr;
   typedef std::shared_ptr<SchedulePlayer> SchedulePlayerPtr;
+  typedef std::shared_ptr<Group> GroupPtr;
   typedef int seq_tick_t;
   typedef unsigned int sched_id_t;
 
@@ -109,6 +111,8 @@ namespace xnor {
       seq_tick_t schedule(seq_tick_t location, SchedPtr sched, bool push_front = false);
       seq_tick_t schedule(seq_tick_t location, seq_func_t func, bool push_front = false);
 
+      seq_tick_t length() const;
+
       void clear();
 
       schedule_list_t& list() { return mSchedule; }
@@ -125,15 +129,28 @@ namespace xnor {
 
       SchedulePtr schedule() { return mSchedule; }
 
+      void tick(Seq * seq);
     protected:
       SchedulePlayer();
       void schedule(SchedulePtr schedule);
 
-      void tick(Seq * seq);
       SchedulePtr mSchedule;
 
     private:
       seq_tick_t mCurrentLocation = 0;
+  };
+
+  class Group : public Sched {
+    public:
+      Group();
+
+      virtual void exec(Seq * seq, Parent * parent);
+
+      //schedule at time location given
+      seq_tick_t schedule(seq_tick_t location, SchedPtr sched, bool push_front = false);
+      seq_tick_t schedule(seq_tick_t location, seq_func_t func, bool push_front = false);
+    private:
+      SchedulePtr mSchedule;
   };
 
   class Seq : public SchedulePlayer {

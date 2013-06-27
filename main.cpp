@@ -14,6 +14,7 @@ class Rando {
 int main(int argc, char * argv[]) {
   std::shared_ptr<xnor::Seq> seq(new xnor::Seq);
 
+  xnor::GroupPtr group = std::make_shared<xnor::Group>();
   {
     auto s = [](xnor::Seq * s, xnor::Parent * p) {
       cout << "start func" << endl;
@@ -24,14 +25,21 @@ int main(int argc, char * argv[]) {
     };
 
     xnor::SchedPtr p = std::make_shared<xnor::StartEndSchedFunc>(1, s, e);
-    seq->schedule(2, p);
+    group->schedule(0, p);
+
+    p = std::make_shared<xnor::StartEndSchedFunc>(3, s, e);
+    group->schedule(2, p);
   }
+
+  xnor::SchedPtr s = group;
+  seq->schedule(0, s);
 
   seq->schedule(15, [](xnor::Seq *s, xnor::Parent *parent) { s->locate(1); });
 
   Rando r;
   seq->schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1, std::placeholders::_2));
 
+  /*
   auto start = [](xnor::Seq * s, xnor::Parent *p) {
     cout << "start periodic" << endl;
   };
@@ -50,6 +58,7 @@ int main(int argc, char * argv[]) {
 
   xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc>(pfunc, start, end);
   seq->schedule(1, periodic);
+  */
 
   for (int i = 0; i < 20; i++) {
     cout << i << endl;
