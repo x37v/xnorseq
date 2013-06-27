@@ -27,7 +27,7 @@ int main(int argc, char * argv[]) {
     seq->schedule(2, p);
   }
 
-  //seq->schedule(5, [](xnor::Seq *s, xnor::Parent *parent) { s->locate(1); });
+  seq->schedule(15, [](xnor::Seq *s, xnor::Parent *parent) { s->locate(1); });
 
   Rando r;
   seq->schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1, std::placeholders::_2));
@@ -49,7 +49,7 @@ int main(int argc, char * argv[]) {
   };
 
   xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc>(pfunc, start, end);
-  seq->schedule(0, periodic);
+  seq->schedule(1, periodic);
 
   for (int i = 0; i < 20; i++) {
     cout << i << endl;
