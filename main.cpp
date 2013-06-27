@@ -12,7 +12,7 @@ class Rando {
 };
 
 int main(int argc, char * argv[]) {
-  xnor::Seq seq;
+  std::shared_ptr<xnor::Seq> seq(new xnor::Seq);
 
   {
     auto s = [](xnor::Seq * s, xnor::Parent * p) {
@@ -24,13 +24,13 @@ int main(int argc, char * argv[]) {
     };
 
     xnor::SchedPtr p = std::make_shared<xnor::StartEndSchedFunc>(1, s, e);
-    seq.schedule(2, p);
+    seq->schedule(2, p);
   }
 
-  //seq.schedule(5, [](xnor::Seq *s, xnor::Parent *parent) { s->locate(1); });
+  //seq->schedule(5, [](xnor::Seq *s, xnor::Parent *parent) { s->locate(1); });
 
   Rando r;
-  seq.schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1, std::placeholders::_2));
+  seq->schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1, std::placeholders::_2));
 
   auto start = [](xnor::Seq * s, xnor::Parent *p) {
     cout << "start periodic" << endl;
@@ -49,10 +49,10 @@ int main(int argc, char * argv[]) {
   };
 
   xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc>(pfunc, start, end);
-  seq.schedule(0, periodic);
+  seq->schedule(0, periodic);
 
   for (int i = 0; i < 20; i++) {
     cout << i << endl;
-    seq.tick();
+    seq->tick();
   }
 }

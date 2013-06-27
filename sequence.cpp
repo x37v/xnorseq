@@ -22,7 +22,7 @@ namespace xnor {
         virtual void exec(Seq * seq, Parent * parent) {
           if (mPeriodic->exec_periodic(seq, parent)) {
             SchedPtr ref = shared_from_this();
-            seq->schedule_absolute(mPeriodic->tick_period(), ref);
+            seq->schedule_absolute(mPeriodic->tick_period(), ref, parent->shared_from_this());
           } else {
             mPeriodic->exec_end(seq, parent);
           }
@@ -50,7 +50,7 @@ namespace xnor {
 
   void StartEndSched::exec(Seq * seq, Parent * parent) {
     auto end_obj = exec_start(seq, parent);
-    seq->schedule_absolute(mEndOffset, end_obj);
+    seq->schedule_absolute(mEndOffset, end_obj, parent->shared_from_this());
   }
 
   StartEndSchedFunc::StartEndSchedFunc(seq_tick_t end_offset, seq_func_t start_func, seq_func_t end_func) :
@@ -69,7 +69,7 @@ namespace xnor {
     std::shared_ptr<PeriodicSched> ref(clone());
     SchedPtr e(new PeriodicEvaluator(ref));
     ref->exec_start(seq, parent);
-    seq->schedule_absolute(ref->tick_period(), e);
+    seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
   }
 
   //by default, do nothing
@@ -144,15 +144,6 @@ namespace xnor {
     mCurrentLocation = location;
   }
 
-  void SchedulePlayer::exec_start(Seq * seq, Parent * parent) {
-    locate(0);
-  }
-
-  bool SchedulePlayer::exec_periodic(Seq * seq, Parent * parent) {
-    tick(seq);
-    return true; //XXX fix
-  }
-
   void SchedulePlayer::tick(Seq * seq) {
     if (!mSchedule)
       return;
@@ -182,16 +173,16 @@ namespace xnor {
     mSchedule->clear();
   }
 
-  void Seq::schedule_absolute(seq_tick_t tick_offset, SchedPtr sched) {
+  void Seq::schedule_absolute(seq_tick_t tick_offset, SchedPtr sched, SchedulePlayerPtr parent) {
     seq_tick_t pos = tick_offset + mTicksAbsolute;
-    auto item = std::make_pair(pos, sched);
-    if (mSeqAbsolute.empty() || mSeqAbsolute.back().first < pos)
+    auto item = abs_sched_t(pos, sched, parent);
+    if (mSeqAbsolute.empty() || mSeqAbsolute.back().index < pos)
       mSeqAbsolute.push_back(item);
-    else if (mSeqAbsolute.front().first >= pos) {
+    else if (mSeqAbsolute.front().index >= pos) {
       mSeqAbsolute.push_front(item);
     } else {
       for (auto it = mSeqAbsolute.begin(); it != mSeqAbsolute.end(); it++) {
-        if (it->first >= pos) {
+        if (it->index >= pos) {
           mSeqAbsolute.insert(it, item);
           break;
         }
@@ -199,27 +190,27 @@ namespace xnor {
     }
   }
 
-  void Seq::schedule_absolute(seq_tick_t tick_offset, seq_func_t func) {
+  void Seq::schedule_absolute(seq_tick_t tick_offset, seq_func_t func, SchedulePlayerPtr parent) {
     SchedPtr sched(new SchedFunc(func));
-    return schedule_absolute(tick_offset, sched);
+    return schedule_absolute(tick_offset, sched, parent);
   }
 
-  void Seq::schedule_absolute(double seconds_from_now, SchedPtr sched) {
+  void Seq::schedule_absolute(double seconds_from_now, SchedPtr sched, SchedulePlayerPtr parent) {
     //unsigned int milliseconds = static_cast<unsigned int>(seconds_from_now * 1000.0);
     //XXX do it!
   }
 
-  void Seq::schedule_absolute(double seconds_from_now, seq_func_t func) {
+  void Seq::schedule_absolute(double seconds_from_now, seq_func_t func, SchedulePlayerPtr parent) {
     SchedPtr sched(new SchedFunc(func));
-    return schedule_absolute(seconds_from_now, sched);
+    return schedule_absolute(seconds_from_now, sched, parent);
   }
 
   void Seq::tick() {
     SchedulePlayer::tick(this);
     for (auto it = mSeqAbsolute.begin(); it != mSeqAbsolute.end(); it++) {
-      if (it->first > mTicksAbsolute)
+      if (it->index > mTicksAbsolute)
         break;
-      it->second->exec(this, this);
+      it->sched->exec(this, it->parent.get());
       it = mSeqAbsolute.erase(it);
     }
     mTicksAbsolute++;

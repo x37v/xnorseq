@@ -17,6 +17,7 @@ namespace xnor {
   typedef std::function<bool(Seq * seq, Parent * parent)> seq_periodic_func_t;
   typedef std::shared_ptr<Sched> SchedPtr;
   typedef std::shared_ptr<Schedule> SchedulePtr;
+  typedef std::shared_ptr<SchedulePlayer> SchedulePlayerPtr;
   typedef int seq_tick_t;
   typedef unsigned int sched_id_t;
 
@@ -115,12 +116,9 @@ namespace xnor {
       schedule_list_t mSchedule;
   };
 
-  class SchedulePlayer {
+  class SchedulePlayer : public std::enable_shared_from_this<SchedulePlayer> {
     public:
       SchedulePlayer(SchedulePtr schedule);
-
-      virtual void exec_start(Seq * seq, Parent * parent);
-      virtual bool exec_periodic(Seq * seq, Parent * parent);
 
       virtual void locate(seq_tick_t location);
       seq_tick_t location() const { return mCurrentLocation; }
@@ -150,17 +148,26 @@ namespace xnor {
       void clear();
 
       //schedule to happen tick_offset or seconds from now, happens even if main schedule jumps
-      void schedule_absolute(seq_tick_t tick_offset, SchedPtr sched);
-      void schedule_absolute(seq_tick_t tick_offset, seq_func_t func);
+      void schedule_absolute(seq_tick_t tick_offset, SchedPtr sched, SchedulePlayerPtr parent);
+      void schedule_absolute(seq_tick_t tick_offset, seq_func_t func, SchedulePlayerPtr parent);
 
-      void schedule_absolute(double seconds_from_now, SchedPtr sched);
-      void schedule_absolute(double seconds_from_now, seq_func_t func);
+      void schedule_absolute(double seconds_from_now, SchedPtr sched, SchedulePlayerPtr parent);
+      void schedule_absolute(double seconds_from_now, seq_func_t func, SchedulePlayerPtr parent);
 
       void tick();
     private:
+      struct abs_sched_t {
+        abs_sched_t(seq_tick_t i, SchedPtr s, SchedulePlayerPtr p) {
+          index = i;
+          sched = s;
+          parent = p;
+        }
+        seq_tick_t index;
+        SchedPtr sched;
+        SchedulePlayerPtr parent;
+      };
       SchedulePtr mSchedule;
-
-      std::list<std::pair<seq_tick_t, SchedPtr> > mSeqAbsolute;
+      std::list<abs_sched_t> mSeqAbsolute;
       seq_tick_t mTicksAbsolute = 0;
   };
 }
