@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <iostream>
+using std::cout;
 using std::cerr;
 using std::endl;
 
@@ -15,8 +16,9 @@ namespace xnor {
   namespace {
     class PeriodicEvaluator : public Sched, public std::enable_shared_from_this<PeriodicEvaluator> {
       public:
-        PeriodicEvaluator(std::shared_ptr<PeriodicSched> periodic) {
+        PeriodicEvaluator(std::shared_ptr<PeriodicSched> periodic, sched_id_t parent_id) {
           mPeriodic = periodic;
+          mParentID = parent_id;
         }
 
         virtual void exec(Seq * seq, Parent * parent) {
@@ -25,12 +27,17 @@ namespace xnor {
             seq->schedule_absolute(mPeriodic->tick_period(), ref, parent->shared_from_this());
           } else {
             mPeriodic->exec_end(seq, parent);
+            seq->remove_dependents(id());
+            seq->remove_dependency(mParentID, id());
           }
         }
+        sched_id_t parent_id() const { return mParentID; }
       private:
         std::shared_ptr<PeriodicSched> mPeriodic;
+        sched_id_t mParentID;
     };
   }
+
   Sched::Sched() {
     mID = sched_id_cnt++;
   }
@@ -66,8 +73,12 @@ namespace xnor {
   }
 
   void PeriodicSched::exec(Seq * seq, Parent * parent) {
+    //create a copy and schedule an evaluator with that copy
+    //add a dependency from this to that evaluator
     std::shared_ptr<PeriodicSched> ref(clone());
-    SchedPtr e(new PeriodicEvaluator(ref));
+    SchedPtr e(new PeriodicEvaluator(ref, id()));
+    seq->add_dependency(id(), e->id());
+
     ref->exec_start(seq, parent);
     seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
   }
@@ -203,6 +214,49 @@ namespace xnor {
   void Seq::schedule_absolute(double seconds_from_now, seq_func_t func, SchedulePlayerPtr parent) {
     SchedPtr sched(new SchedFunc(func));
     return schedule_absolute(seconds_from_now, sched, parent);
+  }
+
+  void Seq::add_dependency(sched_id_t parent, sched_id_t child) {
+    auto loc = mDependencies.find(parent);
+    if (loc != mDependencies.end())
+      loc->second.push_back(child);
+    else {
+      std::list<sched_id_t> deps({child});
+      mDependencies[parent] = deps;
+    }
+  }
+
+  void Seq::remove_dependency(sched_id_t parent, sched_id_t child) {
+    auto loc = mDependencies.find(parent);
+
+    //remove id child from parent and remove parent if it is now empty
+    if (loc != mDependencies.end()) {
+      auto id_itr = loc->second.begin();
+      while (id_itr != loc->second.end()) {
+        if (*id_itr == child)
+          id_itr = loc->second.erase(id_itr);
+      }
+      if (loc->second.empty())
+        mDependencies.erase(loc);
+    }
+  }
+
+  void Seq::remove_dependents(sched_id_t parent) {
+    auto loc = mDependencies.find(parent);
+    if (loc != mDependencies.end()) {
+      //remove all dependents from the schedule
+      for (auto dep_id: loc->second) {
+        auto it = mSeqAbsolute.begin();
+        while (it != mSeqAbsolute.end()) {
+          if (it->sched->id() == dep_id) {
+            remove_dependents(dep_id);
+            it = mSeqAbsolute.erase(it);
+          }
+        }
+      }
+      //erase this dependency entry
+      mDependencies.erase(loc);
+    }
   }
 
   void Seq::tick() {

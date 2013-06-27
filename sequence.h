@@ -26,7 +26,7 @@ namespace xnor {
       Sched();
       virtual void exec(Seq * seq, Parent * parent) = 0;
       virtual ~Sched() {}
-      sched_id_t id() const;
+      sched_id_t id() const { return mID; }
     private:
       sched_id_t mID;
   };
@@ -154,6 +154,12 @@ namespace xnor {
       void schedule_absolute(double seconds_from_now, SchedPtr sched, SchedulePlayerPtr parent);
       void schedule_absolute(double seconds_from_now, seq_func_t func, SchedulePlayerPtr parent);
 
+      //sets up a dependency so that when parent is removed, child will be too
+      void add_dependency(sched_id_t parent, sched_id_t child);
+      void remove_dependency(sched_id_t parent, sched_id_t child);
+
+      void remove_dependents(sched_id_t parent);
+
       void tick();
     private:
       struct abs_sched_t {
@@ -169,6 +175,7 @@ namespace xnor {
       SchedulePtr mSchedule;
       std::list<abs_sched_t> mSeqAbsolute;
       seq_tick_t mTicksAbsolute = 0;
+      std::map<sched_id_t, std::list<sched_id_t> > mDependencies;
   };
 }
 
