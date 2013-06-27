@@ -63,6 +63,8 @@ namespace xnor {
 
   class PeriodicSched : public Sched {
     public:
+      seq_tick_t tick_period() const { return mTickPeriod; }
+
       virtual void exec(Seq * seq, Parent * parent);
 
       virtual void exec_start(Seq * seq, Parent * parent); //default, do nothing
@@ -70,8 +72,6 @@ namespace xnor {
 
       //true to keep in schedule
       virtual bool exec_periodic(Seq * seq, Parent * parent) = 0;
-
-      seq_tick_t tick_period() const { return mTickPeriod; }
 
       //the actual periodic evaluation happens on a copy
       //so you must create a clone method
