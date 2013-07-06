@@ -5,9 +5,8 @@ Sequencer in progress
 
 using c++11.. not likely to be real-time safe, ever
 
+SchedulePlayer should pass down a boolean to indicate if they've jumped [location changed] in the past tick.  This way periodics can evaluate if they should keep going.
 
-Schedules/Groups should not contain tick state, they should just contain the
-schedule and another lighter weight object could contain play state so that 
-you don't worry about a group overlapping with itself.. which wouldn't work in
-the current scheme..
+Groups should be able to have their own play rate, so in the normal situation they can just count down ticks and not worry about parent activities..
+if the parent jumps back though, just have to figure out the math.
 

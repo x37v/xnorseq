@@ -29,6 +29,7 @@ int main(int argc, char * argv[]) {
 
     p = std::make_shared<xnor::StartEndSchedFunc>(3, s, e);
     group->schedule(2, p);
+    group->schedule(5, p);
   }
 
   xnor::SchedPtr s = group;

@@ -130,6 +130,8 @@ namespace xnor {
       SchedulePtr schedule() { return mSchedule; }
 
       void tick(Seq * seq);
+      void ms_per_tick(unsigned int ms) { mMSperTick = ms; }
+
     protected:
       SchedulePlayer();
       void schedule(SchedulePtr schedule);
@@ -138,6 +140,9 @@ namespace xnor {
 
     private:
       seq_tick_t mCurrentLocation = 0;
+
+      unsigned int ms_per_tick() const { return mMSperTick; }
+      unsigned int mMSperTick = 10;
   };
 
   class Group : public Sched {
@@ -151,6 +156,7 @@ namespace xnor {
       seq_tick_t schedule(seq_tick_t location, seq_func_t func, bool push_front = false);
     private:
       SchedulePtr mSchedule;
+      bool mUseParentTickRate = true;
   };
 
   class Seq : public SchedulePlayer {
