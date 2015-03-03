@@ -5,6 +5,10 @@ Sequencer in progress
 
 using c++11.. not likely to be real-time safe, ever
 
+
+TODO/QUESTIONS
+------
+
 use weak_ptr for periodic evaluators?
 
 use state objects for periodic evaluators instead of clone?
