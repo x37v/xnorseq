@@ -1,6 +1,7 @@
 #include "sequence.h"
 #include <atomic>
 #include <algorithm>
+#include <cassert>
 
 #include <iostream>
 using std::cout;
@@ -89,16 +90,24 @@ namespace xnor {
     seq->schedule_absolute(mEndOffset, end_obj, parent->shared_from_this());
   }
 
-  StartEndSchedFunc::StartEndSchedFunc(seq_tick_t end_offset, seq_func_t start_func, seq_func_t end_func) :
+  StartEndSchedFunc::StartEndSchedFunc(seq_tick_t end_offset, start_end_func_t func) :
     StartEndSched(end_offset),
-    mStartFunc(start_func), mEndFunc(end_func)
+    mFunc(func)
   {
+    assert(mFunc);
   }
 
   SchedPtr StartEndSchedFunc::exec_start(Seq * seq, Parent * parent) {
-    if (mStartFunc)
-      mStartFunc(seq, parent);
-    return SchedPtr(new SchedFunc(mEndFunc));
+    mFunc(START, seq, parent);
+
+    std::weak_ptr<StartEndSchedFunc> weak_self(shared_from_this());
+    seq_func_t end_func = [weak_self](Seq * seq, Parent * parent) {
+      auto self = weak_self.lock();
+      if (self)
+        self->mFunc(END, seq, parent);
+    };
+
+    return SchedPtr(new SchedFunc(end_func));
   }
 
   void PeriodicSched::exec(Seq * seq, Parent * parent) {

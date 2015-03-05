@@ -16,6 +16,10 @@ namespace xnor {
   typedef SchedulePlayer Parent;
   typedef std::function<void(Seq * seq, Parent * parent)> seq_func_t;
   typedef std::function<bool(Seq * seq, Parent * parent)> seq_periodic_func_t;
+
+  enum start_end_t {START, END};
+  typedef std::function<void(start_end_t state, Seq * seq, Parent * parent)> start_end_func_t;
+
   typedef std::shared_ptr<Sched> SchedPtr;
   typedef std::shared_ptr<Schedule> SchedulePtr;
   typedef std::shared_ptr<SchedulePlayer> SchedulePlayerPtr;
@@ -53,14 +57,13 @@ namespace xnor {
       seq_tick_t mEndOffset;
   };
 
-  class StartEndSchedFunc : public StartEndSched {
+  class StartEndSchedFunc : public StartEndSched, public std::enable_shared_from_this<StartEndSchedFunc> {
     public:
-      StartEndSchedFunc(seq_tick_t end_offset, seq_func_t start_func, seq_func_t end_func);
+      StartEndSchedFunc(seq_tick_t end_offset, start_end_func_t func);
       virtual ~StartEndSchedFunc() {}
       virtual SchedPtr exec_start(Seq * seq, Parent * parent);
     private:
-      seq_func_t mStartFunc;
-      seq_func_t mEndFunc;
+      start_end_func_t mFunc;
   };
 
   class PeriodicSched : public Sched {
@@ -156,7 +159,7 @@ namespace xnor {
       seq_tick_t schedule(seq_tick_t location, seq_func_t func, bool push_front = false);
     private:
       SchedulePtr mSchedule;
-      bool mUseParentTickRate = true;
+      //bool mUseParentTickRate = true;
   };
 
   class Seq : public SchedulePlayer {

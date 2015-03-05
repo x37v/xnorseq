@@ -16,18 +16,17 @@ int main(int argc, char * argv[]) {
 
   xnor::GroupPtr group = std::make_shared<xnor::Group>();
   {
-    auto s = [](xnor::Seq * s, xnor::Parent * p) {
-      cout << "start func" << endl;
+    auto f = [](xnor::start_end_t state, xnor::Seq * s, xnor::Parent * p) {
+      if (state == xnor::START)
+        cout << "start" << endl;
+      else
+        cout << "end" << endl;
     };
 
-    auto e = [](xnor::Seq * s, xnor::Parent * p) {
-      cout << "end func" << endl;
-    };
-
-    xnor::SchedPtr p = std::make_shared<xnor::StartEndSchedFunc>(1, s, e);
+    xnor::SchedPtr p = std::make_shared<xnor::StartEndSchedFunc>(1, f);
     group->schedule(0, p);
 
-    p = std::make_shared<xnor::StartEndSchedFunc>(3, s, e);
+    p = std::make_shared<xnor::StartEndSchedFunc>(3, f);
     group->schedule(2, p);
     group->schedule(5, p);
   }
