@@ -60,8 +60,8 @@ int main(int argc, char * argv[]) {
   seq->schedule(1, periodic);
   */
 
-  for (int i = 0; i < 20; i++) {
-    cout << i << endl;
+  for (int i = 0; i < 30; i++) {
+    cout << i << " tick: " << seq->location() << endl;
     seq->tick();
   }
 }
