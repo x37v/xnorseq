@@ -26,6 +26,7 @@ int main(int argc, char * argv[]) {
     xnor::SchedPtr p = std::make_shared<xnor::StartEndSchedFunc>(1, f);
     group->schedule(0, p);
 
+    //XXX why don't these happen?
     p = std::make_shared<xnor::StartEndSchedFunc>(3, f);
     group->schedule(2, p);
     group->schedule(5, p);
