@@ -9,11 +9,16 @@ using c++11.. not likely to be real-time safe, ever
 TODO/QUESTIONS
 ------
 
-use weak_ptr for periodic evaluators?
-
 use state objects for periodic evaluators instead of clone?
 
-start/end and periodic function objects should take a single function that gets sent its state [start, end or middle]
+Classes should return a state object which is passed back to them to operate on
+for start, end, periodic, and the exec\* methods should be const.  This way you
+can have multiple copies of the same objects being executed with different data
+and ditch the 'clone' method [that would essentially be replaced by some 'get
+state object' method].  These would probably be templated, so lambda function typedefs
+would have to move into the class.  PeriodicSchedFunc<int>(lambda that takes an int ref or even a shared ptr to one)
+
+use weak_ptr for periodic evaluators?
 
 SchedulePlayer should pass down a boolean to indicate if they've jumped [location changed] in the past tick.  This way periodics can evaluate if they should keep going.
 
