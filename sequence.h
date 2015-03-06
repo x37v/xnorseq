@@ -14,11 +14,13 @@ namespace xnor {
   class Group;
 
   typedef SchedulePlayer Parent;
-  typedef std::function<void(Seq * seq, Parent * parent)> seq_func_t;
-  typedef std::function<bool(Seq * seq, Parent * parent)> seq_periodic_func_t;
 
-  enum start_end_t {START, END};
-  typedef std::function<void(start_end_t state, Seq * seq, Parent * parent)> start_end_func_t;
+  enum se_state_t {SE_START, SE_END};
+  enum p_state_t {P_START, P_PERIODIC, P_END};
+
+  typedef std::function<void(Seq * seq, Sched * owner, Parent * parent)> seq_func_t;
+  typedef std::function<void(se_state_t state, Seq * seq, Sched * owner, Parent * parent)> start_end_func_t;
+  typedef std::function<bool(p_state_t state, Seq * seq, Sched * owner, Parent * parent)> seq_periodic_func_t;
 
   typedef std::shared_ptr<Sched> SchedPtr;
   typedef std::shared_ptr<Schedule> SchedulePtr;
@@ -90,7 +92,7 @@ namespace xnor {
   //dangerous, make sure that you use with care..
   class PeriodicSchedFunc : public PeriodicSched {
     public:
-      PeriodicSchedFunc(seq_periodic_func_t periodic_func, seq_func_t start_func = seq_func_t(), seq_func_t end_func = seq_func_t());
+      PeriodicSchedFunc(seq_periodic_func_t periodic_func);
 
       virtual void exec_start(Seq * seq, Parent * parent);
       virtual void exec_end(Seq * seq, Parent * parent);
@@ -98,8 +100,6 @@ namespace xnor {
 
       virtual PeriodicSched * clone();
     private:
-      seq_func_t mStartFunc = nullptr;
-      seq_func_t mEndFunc = nullptr;
       seq_periodic_func_t mPeriodicFunc = nullptr;
   };
 

@@ -6,7 +6,7 @@ using std::endl;
 
 class Rando {
   public:
-    void exec(xnor::Seq * s, xnor::Parent * parent) {
+    void exec(xnor::Seq * s, xnor::Sched * owner, xnor::Parent * parent) {
       cout << "rando exec" << endl;
     }
 };
@@ -14,6 +14,7 @@ class Rando {
 int main(int argc, char * argv[]) {
   std::shared_ptr<xnor::Seq> seq(new xnor::Seq);
 
+  /*
   xnor::GroupPtr group = std::make_shared<xnor::Group>();
   {
     auto f = [](xnor::start_end_t state, xnor::Seq * s, xnor::Parent * p) {
@@ -34,11 +35,12 @@ int main(int argc, char * argv[]) {
 
   xnor::SchedPtr s = group;
   seq->schedule(0, s);
+  */
 
-  seq->schedule(15, [](xnor::Seq *s, xnor::Parent *parent) { s->locate(1); });
+  seq->schedule(15, [](xnor::Seq *s, xnor::Sched * owner, xnor::Parent *parent) { s->locate(1); });
 
   Rando r;
-  seq->schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1, std::placeholders::_2));
+  seq->schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
   /*
   auto start = [](xnor::Seq * s, xnor::Parent *p) {
@@ -57,9 +59,31 @@ int main(int argc, char * argv[]) {
     return true;
   };
 
-  xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc>(pfunc, start, end);
-  seq->schedule(1, periodic);
   */
+
+  {
+    auto pfunc = [](xnor::p_state_t state, xnor::Seq * s, xnor::Sched * o, xnor::Parent * p) -> bool {
+      static int count = 0;
+      switch (state) {
+        case xnor::P_END:
+          cout << "periodic " << o->id() << ": end" << endl;
+          return false; //ignored
+        case xnor::P_START:
+          count = 0;
+          cout << "periodic: start" << endl;
+          cout << "periodic " << o->id() << ": start" << endl;
+        default:
+          cout << "periodic " << o->id() << ": " << count << endl;
+          if (count++ > 3)
+            return false;
+          break;
+      }
+      return true;
+    };
+
+    xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc>(pfunc);
+    seq->schedule(1, periodic);
+  }
 
   for (int i = 0; i < 30; i++) {
     cout << i << " tick: " << seq->location() << endl;

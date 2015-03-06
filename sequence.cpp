@@ -76,7 +76,7 @@ namespace xnor {
 
   void SchedFunc::exec(Seq * seq, Parent * parent) {
     if (mFunc)
-      mFunc(seq, parent);
+      mFunc(seq, this, parent);
   }
 
   StartEndSched::StartEndSched(seq_tick_t end_offset) :
@@ -98,13 +98,13 @@ namespace xnor {
   }
 
   SchedPtr StartEndSchedFunc::exec_start(Seq * seq, Parent * parent) {
-    mFunc(START, seq, parent);
+    mFunc(SE_START, seq, this, parent);
 
     std::weak_ptr<StartEndSchedFunc> weak_self(shared_from_this());
-    seq_func_t end_func = [weak_self](Seq * seq, Parent * parent) {
+    seq_func_t end_func = [weak_self](Seq * seq, Sched * owner, Parent * parent) {
       auto self = weak_self.lock();
       if (self)
-        self->mFunc(END, seq, parent);
+        self->mFunc(SE_END, seq, owner, parent);
     };
 
     return SchedPtr(new SchedFunc(end_func));
@@ -125,23 +125,22 @@ namespace xnor {
   void PeriodicSched::exec_start(Seq * seq, Parent * parent) { }
   void PeriodicSched::exec_end(Seq * seq, Parent * parent) { }
 
-  PeriodicSchedFunc::PeriodicSchedFunc(seq_periodic_func_t periodic_func, seq_func_t start_func, seq_func_t end_func) :
-    mStartFunc(start_func), mEndFunc(end_func), mPeriodicFunc(periodic_func)
+  PeriodicSchedFunc::PeriodicSchedFunc(seq_periodic_func_t periodic_func) :
+    mPeriodicFunc(periodic_func)
   {
+    assert(mPeriodicFunc);
   }
 
   void PeriodicSchedFunc::exec_start(Seq * seq, Parent * parent) {
-    if (mStartFunc)
-      mStartFunc(seq, parent);
+    mPeriodicFunc(P_START, seq, this, parent);
   }
 
   void PeriodicSchedFunc::exec_end(Seq * seq, Parent * parent) {
-    if (mEndFunc)
-      mEndFunc(seq, parent);
+    mPeriodicFunc(P_END, seq, this, parent);
   }
 
   bool PeriodicSchedFunc::exec_periodic(Seq * seq, Parent * parent) {
-    return mPeriodicFunc(seq, parent);
+    return mPeriodicFunc(P_PERIODIC, seq, this, parent);
   }
 
   PeriodicSched * PeriodicSchedFunc::clone() {
@@ -219,7 +218,7 @@ namespace xnor {
 
   void Group::exec(Seq * seq, Parent * parent) {
     //create player and add dependencies
-    std::shared_ptr<GroupPlayer> player(new GroupPlayer(mSchedule));
+    std::shared_ptr<GroupPlayer> player = std::make_shared<GroupPlayer>(mSchedule);
     seq->add_dependency(id(), player->id());
     player->exec(seq, parent);
   }
