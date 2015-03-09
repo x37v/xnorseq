@@ -61,7 +61,6 @@ int main(int argc, char * argv[]) {
 
   */
 
-  {
     auto pfunc = [](xnor::p_state_t state, std::shared_ptr<int> count, xnor::Seq * s, xnor::Sched * o, xnor::Parent * p) -> bool {
       switch (state) {
         case xnor::P_END:
@@ -81,7 +80,7 @@ int main(int argc, char * argv[]) {
 
     xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc<int>>(pfunc);
     seq->schedule(1, periodic);
-  }
+    seq->schedule(2, periodic);
 
   for (int i = 0; i < 30; i++) {
     cout << i << " tick: " << seq->location() << endl;

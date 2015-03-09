@@ -195,6 +195,7 @@ namespace xnor {
                 if (ref)
                   ref->exec_end(mState, seq, parent);
                 seq->remove_dependents(id());
+                //XXX there is a problem here when we overlap the same sequence object
                 seq->remove_dependency(mParentID, id());
               }
             }
