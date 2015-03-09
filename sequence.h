@@ -211,14 +211,12 @@ namespace xnor {
         virtual void exec(Seq * seq, Parent * parent) {
           //create a copy and schedule an evaluator with that copy
           //add a dependency from this to that evaluator
-          /*
-          std::weak_ptr<PeriodicSched<StateStorage>> ref;// = PeriodicSched::shared_from_this<PeriodicSched<typename StateStorage>>();
-          auto e = std::make_shared<PeriodicEvaluator<typename StateStorage>>(ref, id());
+          std::weak_ptr<PeriodicSched<StateStorage>> ref = shared_from_this();
+          auto e = std::make_shared<PeriodicEvaluator>(ref, id());
           seq->add_dependency(id(), e->id());
 
           ref->exec_start(seq, parent);
           seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
-          */
         }
 
         virtual void exec_start(StateStorage& state_storage, Seq * seq, Parent * parent) const {} //default, do nothing
