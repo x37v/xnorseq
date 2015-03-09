@@ -62,8 +62,7 @@ int main(int argc, char * argv[]) {
   */
 
   {
-    auto pfunc = [](xnor::p_state_t state, xnor::Seq * s, xnor::Sched * o, xnor::Parent * p) -> bool {
-      static int count = 0;
+    auto pfunc = [](xnor::p_state_t state, int& count, xnor::Seq * s, xnor::Sched * o, xnor::Parent * p) -> bool {
       switch (state) {
         case xnor::P_END:
           cout << "periodic " << o->id() << ": end" << endl;
@@ -81,7 +80,7 @@ int main(int argc, char * argv[]) {
       return true;
     };
 
-    xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc>(pfunc);
+    xnor::SchedPtr periodic = std::make_shared<xnor::PeriodicSchedFunc<int>>(pfunc);
     seq->schedule(1, periodic);
   }
 

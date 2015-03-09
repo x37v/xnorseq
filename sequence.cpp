@@ -15,29 +15,8 @@ namespace {
 
 namespace xnor {
   namespace {
-    class PeriodicEvaluator : public Sched, public std::enable_shared_from_this<PeriodicEvaluator> {
-      public:
-        PeriodicEvaluator(std::shared_ptr<PeriodicSched> periodic, sched_id_t parent_id) {
-          mPeriodic = periodic;
-          mParentID = parent_id;
-        }
 
-        virtual void exec(Seq * seq, Parent * parent) {
-          if (mPeriodic->exec_periodic(seq, parent)) {
-            SchedPtr ref = shared_from_this();
-            seq->schedule_absolute(mPeriodic->tick_period(), ref, parent->shared_from_this());
-          } else {
-            mPeriodic->exec_end(seq, parent);
-            seq->remove_dependents(id());
-            seq->remove_dependency(mParentID, id());
-          }
-        }
-        sched_id_t parent_id() const { return mParentID; }
-      private:
-        std::shared_ptr<PeriodicSched> mPeriodic;
-        sched_id_t mParentID;
-    };
-
+    /*
     class GroupPlayer : public PeriodicSched {
       public:
         GroupPlayer(SchedulePtr schedule) :
@@ -66,6 +45,7 @@ namespace xnor {
         SchedulePlayerPtr mPlayer;
         seq_tick_t mParentOffset = 0;
     };
+    */
   }
 
   Sched::Sched() {
@@ -90,6 +70,7 @@ namespace xnor {
     seq->schedule_absolute(mEndOffset, end_obj, parent->shared_from_this());
   }
 
+  /*
   StartEndSchedFunc::StartEndSchedFunc(seq_tick_t end_offset, start_end_func_t func) :
     StartEndSched(end_offset),
     mFunc(func)
@@ -109,22 +90,9 @@ namespace xnor {
 
     return SchedPtr(new SchedFunc(end_func));
   }
+  */
 
-  void PeriodicSched::exec(Seq * seq, Parent * parent) {
-    //create a copy and schedule an evaluator with that copy
-    //add a dependency from this to that evaluator
-    std::shared_ptr<PeriodicSched> ref(clone());
-    SchedPtr e(new PeriodicEvaluator(ref, id()));
-    seq->add_dependency(id(), e->id());
-
-    ref->exec_start(seq, parent);
-    seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
-  }
-
-  //by default, do nothing
-  void PeriodicSched::exec_start(Seq * seq, Parent * parent) { }
-  void PeriodicSched::exec_end(Seq * seq, Parent * parent) { }
-
+  /*
   PeriodicSchedFunc::PeriodicSchedFunc(seq_periodic_func_t periodic_func) :
     mPeriodicFunc(periodic_func)
   {
@@ -146,6 +114,7 @@ namespace xnor {
   PeriodicSched * PeriodicSchedFunc::clone() {
     return static_cast<PeriodicSched *>(new PeriodicSchedFunc(*this));
   }
+  */
 
   Schedule::Schedule() { }
 
@@ -211,6 +180,7 @@ namespace xnor {
     }
   }
 
+  /*
   Group::Group() :
     mSchedule(new Schedule)
   {
@@ -230,6 +200,7 @@ namespace xnor {
   seq_tick_t Group::schedule(seq_tick_t location, seq_func_t func, bool push_front) {
     return mSchedule->schedule(location, func, push_front);
   }
+  */
 
   Seq::Seq() : SchedulePlayer() {
     mSchedule = SchedulePtr(new Schedule);

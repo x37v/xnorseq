@@ -11,7 +11,7 @@ OBJ = ${SRC:.cpp=.o}
 .cpp.o:
 	${CXX} -c ${CXXFLAGS} -o $*.o $<
 
-seq: ${OBJ}
+seq: ${OBJ} sequence.h
 	${CXX} ${CXXFLAGS} -o seq ${OBJ}
 
 clean:

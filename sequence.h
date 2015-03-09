@@ -29,7 +29,7 @@ namespace xnor {
   typedef int seq_tick_t;
   typedef unsigned int sched_id_t;
 
-  class Sched {
+  class Sched : public std::enable_shared_from_this<Sched>{
     public:
       Sched();
       virtual void exec(Seq * seq, Parent * parent) = 0;
@@ -59,6 +59,7 @@ namespace xnor {
       seq_tick_t mEndOffset;
   };
 
+  /*
   class StartEndSchedFunc : public StartEndSched, public std::enable_shared_from_this<StartEndSchedFunc> {
     public:
       StartEndSchedFunc(seq_tick_t end_offset, start_end_func_t func);
@@ -67,41 +68,7 @@ namespace xnor {
     private:
       start_end_func_t mFunc;
   };
-
-  class PeriodicSched : public Sched {
-    public:
-      seq_tick_t tick_period() const { return mTickPeriod; }
-
-      virtual void exec(Seq * seq, Parent * parent);
-
-      virtual void exec_start(Seq * seq, Parent * parent); //default, do nothing
-      virtual void exec_end(Seq * seq, Parent * parent); //default, do nothing
-
-      //true to keep in schedule
-      virtual bool exec_periodic(Seq * seq, Parent * parent) = 0;
-
-      //the actual periodic evaluation happens on a copy
-      //so you must create a clone method
-      //the copy can store and modify its state
-      //but make sure its exec_periodic eventually returns false
-      virtual PeriodicSched * clone() = 0;
-    private:
-      seq_tick_t mTickPeriod = 1;
-  };
-
-  //dangerous, make sure that you use with care..
-  class PeriodicSchedFunc : public PeriodicSched {
-    public:
-      PeriodicSchedFunc(seq_periodic_func_t periodic_func);
-
-      virtual void exec_start(Seq * seq, Parent * parent);
-      virtual void exec_end(Seq * seq, Parent * parent);
-      virtual bool exec_periodic(Seq * seq, Parent * parent);
-
-      virtual PeriodicSched * clone();
-    private:
-      seq_periodic_func_t mPeriodicFunc = nullptr;
-  };
+  */
 
   class Schedule {
     public:
@@ -148,6 +115,7 @@ namespace xnor {
       unsigned int mMSperTick = 10;
   };
 
+  /*
   class Group : public Sched {
     public:
       Group();
@@ -161,6 +129,7 @@ namespace xnor {
       SchedulePtr mSchedule;
       //bool mUseParentTickRate = true;
   };
+  */
 
   class Seq : public SchedulePlayer {
     public:
@@ -203,6 +172,92 @@ namespace xnor {
       seq_tick_t mTicksAbsolute = 0;
       std::map<sched_id_t, std::list<sched_id_t> > mDependencies;
   };
+
+  template <typename StateStorage>
+    class PeriodicSched : public Sched, public std::enable_shared_from_this<PeriodicSched<StateStorage>> {
+      private:
+        class PeriodicEvaluator : public Sched {
+          public:
+            PeriodicEvaluator(std::weak_ptr<PeriodicSched<StateStorage>> periodic, sched_id_t parent_id) {
+              mPeriodic = periodic;
+              mParentID = parent_id;
+              mState = StateStorage();
+            }
+
+            virtual void exec(Seq * seq, Parent * parent) {
+              if (mPeriodic->exec_periodic(mState, seq, parent)) {
+                SchedPtr ref = shared_from_this();
+                seq->schedule_absolute(mState, mPeriodic->tick_period(), ref, parent->shared_from_this());
+              } else {
+                mPeriodic->exec_end(mState, seq, parent);
+                seq->remove_dependents(id());
+                seq->remove_dependency(mParentID, id());
+              }
+            }
+
+            void exec_start(Seq * seq, Parent * parent) const {
+              mPeriodic->exec_end(mState, seq, parent);
+            }
+
+            sched_id_t parent_id() const { return mParentID; }
+          private:
+            std::weak_ptr<PeriodicSched> mPeriodic;
+            sched_id_t mParentID;
+            StateStorage mState;
+        };
+      public:
+        seq_tick_t tick_period() const { return mTickPeriod; }
+
+        virtual void exec(Seq * seq, Parent * parent) {
+          //create a copy and schedule an evaluator with that copy
+          //add a dependency from this to that evaluator
+          /*
+          std::weak_ptr<PeriodicSched<StateStorage>> ref;// = PeriodicSched::shared_from_this<PeriodicSched<typename StateStorage>>();
+          auto e = std::make_shared<PeriodicEvaluator<typename StateStorage>>(ref, id());
+          seq->add_dependency(id(), e->id());
+
+          ref->exec_start(seq, parent);
+          seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
+          */
+        }
+
+        virtual void exec_start(StateStorage& state_storage, Seq * seq, Parent * parent) const {} //default, do nothing
+        virtual void exec_end(StateStorage& state_storage, Seq * seq, Parent * parent) const {} //default, do nothing
+
+        //true to keep in schedule
+        virtual bool exec_periodic(StateStorage& state_storage, Seq * seq, Parent * parent) const = 0;
+
+        //returns a chunk of data that is passed to the exec start, end and periodic methods
+        //unique per instance in the main schedule
+        virtual StateStorage state_storage() const { return StateStorage(); }
+      private:
+        seq_tick_t mTickPeriod = 1;
+    };
+
+  //dangerous, make sure that you use with care..
+  template <typename StateStorage>
+    class PeriodicSchedFunc : public PeriodicSched<StateStorage> {
+      public:
+        typedef std::function<bool(p_state_t state, StateStorage& storage, Seq * seq, Sched * owner, Parent * parent)> func_t;
+
+        PeriodicSchedFunc(func_t periodic_func) : mPeriodicFunc(periodic_func) {
+        }
+
+        virtual void exec_start(StateStorage& state_storage, Seq * seq, Parent * parent) const {
+          //mPeriodicFunc(P_START, state_storage, seq, this, parent);
+        }
+
+        virtual void exec_end(StateStorage& state_storage, Seq * seq, Parent * parent) const {
+          //mPeriodicFunc(P_END, state_storage, seq, this, parent);
+        }
+
+        virtual bool exec_periodic(StateStorage& state_storage, Seq * seq, Parent * parent) const {
+          return false;//mPeriodicFunc(P_PERIODIC, state_storage, seq, this, parent);
+        }
+
+      private:
+        func_t mPeriodicFunc;
+    };
 }
 
 #endif
