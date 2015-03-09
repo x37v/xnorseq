@@ -62,18 +62,17 @@ int main(int argc, char * argv[]) {
   */
 
   {
-    auto pfunc = [](xnor::p_state_t state, int& count, xnor::Seq * s, xnor::Sched * o, xnor::Parent * p) -> bool {
+    auto pfunc = [](xnor::p_state_t state, std::shared_ptr<int> count, xnor::Seq * s, xnor::Sched * o, xnor::Parent * p) -> bool {
       switch (state) {
         case xnor::P_END:
-          cout << "periodic " << o->id() << ": end" << endl;
+          cout << "periodic " << count << ": end" << endl;
           return false; //ignored
         case xnor::P_START:
-          count = 0;
-          cout << "periodic: start" << endl;
-          cout << "periodic " << o->id() << ": start" << endl;
+          *count = 0;
+          cout << "periodic " << count << ": start" << endl;
         default:
-          cout << "periodic " << o->id() << ": " << count << endl;
-          if (count++ > 3)
+          cout << "periodic " << count << ": " << *count << endl;
+          if ((*count)++ > 3)
             return false;
           break;
       }

@@ -182,14 +182,15 @@ namespace xnor {
             PeriodicEvaluator(std::weak_ptr<PeriodicSched<StateStorage>> periodic, sched_id_t parent_id) {
               mPeriodic = periodic;
               mParentID = parent_id;
-              mState = StateStorage();
+              mState = std::make_shared<StateStorage>();
             }
 
             virtual void exec(Seq * seq, Parent * parent) {
               std::shared_ptr<PeriodicSched> ref = mPeriodic.lock();
 
               if (ref && ref->exec_periodic(mState, seq, parent)) {
-                seq->schedule_absolute(ref->tick_period(), ref, parent->shared_from_this());
+                SchedPtr self = shared_from_this();
+                seq->schedule_absolute(ref->tick_period(), self, parent->shared_from_this());
               } else {
                 if (ref)
                   ref->exec_end(mState, seq, parent);
@@ -199,14 +200,16 @@ namespace xnor {
             }
 
             void exec_start(Seq * seq, Parent * parent) const {
-              mPeriodic->exec_end(mState, seq, parent);
+              std::shared_ptr<PeriodicSched> ref = mPeriodic.lock();
+              if (ref)
+                ref->exec_start(mState, seq, parent);
             }
 
             sched_id_t parent_id() const { return mParentID; }
           private:
             std::weak_ptr<PeriodicSched> mPeriodic;
             sched_id_t mParentID;
-            StateStorage mState;
+            std::shared_ptr<StateStorage> mState;
         };
       public:
         seq_tick_t tick_period() const { return mTickPeriod; }
@@ -218,20 +221,16 @@ namespace xnor {
           auto e = std::make_shared<PeriodicEvaluator>(ref, id());
           seq->add_dependency(id(), e->id());
 
-          //XXX pass state storage
-          //ref->exec_start(seq, parent);
+          e->exec_start(seq, parent);
           seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
         }
 
-        virtual void exec_start(StateStorage& state_storage, Seq * seq, Parent * parent) const {} //default, do nothing
-        virtual void exec_end(StateStorage& state_storage, Seq * seq, Parent * parent) const {} //default, do nothing
+        virtual void exec_start(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) {} //default, do nothing
+        virtual void exec_end(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) {} //default, do nothing
 
         //true to keep in schedule
-        virtual bool exec_periodic(StateStorage& state_storage, Seq * seq, Parent * parent) const = 0;
+        virtual bool exec_periodic(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) = 0;
 
-        //returns a chunk of data that is passed to the exec start, end and periodic methods
-        //unique per instance in the main schedule
-        virtual StateStorage state_storage() const { return StateStorage(); }
 
         //couldn't get enable_shared_from_this inherited into this class so just created our own..
         std::shared_ptr<PeriodicSched<StateStorage>> shared_from_this() { return std::static_pointer_cast<PeriodicSched<StateStorage>>(Sched::shared_from_this()); }
@@ -243,21 +242,21 @@ namespace xnor {
   template <typename StateStorage>
     class PeriodicSchedFunc : public PeriodicSched<StateStorage> {
       public:
-        typedef std::function<bool(p_state_t state, StateStorage& storage, Seq * seq, Sched * owner, Parent * parent)> func_t;
+        typedef std::function<bool(p_state_t state, std::shared_ptr<StateStorage> storage, Seq * seq, Sched * owner, Parent * parent)> func_t;
 
         PeriodicSchedFunc(func_t periodic_func) : mPeriodicFunc(periodic_func) {
         }
 
-        virtual void exec_start(StateStorage& state_storage, Seq * seq, Parent * parent) const {
-          //mPeriodicFunc(P_START, state_storage, seq, this, parent);
+        virtual void exec_start(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) {
+          mPeriodicFunc(P_START, state_storage, seq, this, parent);
         }
 
-        virtual void exec_end(StateStorage& state_storage, Seq * seq, Parent * parent) const {
-          //mPeriodicFunc(P_END, state_storage, seq, this, parent);
+        virtual void exec_end(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) {
+          mPeriodicFunc(P_END, state_storage, seq, this, parent);
         }
 
-        virtual bool exec_periodic(StateStorage& state_storage, Seq * seq, Parent * parent) const {
-          return false;//mPeriodicFunc(P_PERIODIC, state_storage, seq, this, parent);
+        virtual bool exec_periodic(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) {
+          return mPeriodicFunc(P_PERIODIC, state_storage, seq, this, parent);
         }
 
       private:
