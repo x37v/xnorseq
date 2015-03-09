@@ -174,7 +174,8 @@ namespace xnor {
   };
 
   template <typename StateStorage>
-    class PeriodicSched : public Sched, public std::enable_shared_from_this<PeriodicSched<StateStorage>> {
+    //class PeriodicSched : public Sched, public std::enable_shared_from_this<PeriodicSched<StateStorage>> {
+    class PeriodicSched : public Sched {
       private:
         class PeriodicEvaluator : public Sched {
           public:
@@ -185,11 +186,14 @@ namespace xnor {
             }
 
             virtual void exec(Seq * seq, Parent * parent) {
-              if (mPeriodic->exec_periodic(mState, seq, parent)) {
+              std::shared_ptr<PeriodicSched> ref = mPeriodic.lock();
+
+              if (ref && ref->exec_periodic(mState, seq, parent)) {
                 SchedPtr ref = shared_from_this();
-                seq->schedule_absolute(mState, mPeriodic->tick_period(), ref, parent->shared_from_this());
+                seq->schedule_absolute(mState, ref->tick_period(), ref, parent->shared_from_this());
               } else {
-                mPeriodic->exec_end(mState, seq, parent);
+                if (ref)
+                  ref->exec_end(mState, seq, parent);
                 seq->remove_dependents(id());
                 seq->remove_dependency(mParentID, id());
               }
@@ -211,11 +215,12 @@ namespace xnor {
         virtual void exec(Seq * seq, Parent * parent) {
           //create a copy and schedule an evaluator with that copy
           //add a dependency from this to that evaluator
-          std::weak_ptr<PeriodicSched<StateStorage>> ref = shared_from_this();
+          std::shared_ptr<PeriodicSched<StateStorage>> ref = shared_from_this();
           auto e = std::make_shared<PeriodicEvaluator>(ref, id());
           seq->add_dependency(id(), e->id());
 
-          ref->exec_start(seq, parent);
+          //XXX pass state storage
+          //ref->exec_start(seq, parent);
           seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
         }
 
@@ -228,6 +233,9 @@ namespace xnor {
         //returns a chunk of data that is passed to the exec start, end and periodic methods
         //unique per instance in the main schedule
         virtual StateStorage state_storage() const { return StateStorage(); }
+
+        //couldn't get enable_shared_from_this inherited into this class so just created our own..
+        std::shared_ptr<PeriodicSched<StateStorage>> shared_from_this() { return std::static_pointer_cast<PeriodicSched<StateStorage>>(Sched::shared_from_this()); }
       private:
         seq_tick_t mTickPeriod = 1;
     };
