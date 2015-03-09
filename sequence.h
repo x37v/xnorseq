@@ -189,8 +189,7 @@ namespace xnor {
               std::shared_ptr<PeriodicSched> ref = mPeriodic.lock();
 
               if (ref && ref->exec_periodic(mState, seq, parent)) {
-                SchedPtr ref = shared_from_this();
-                seq->schedule_absolute(mState, ref->tick_period(), ref, parent->shared_from_this());
+                seq->schedule_absolute(ref->tick_period(), ref, parent->shared_from_this());
               } else {
                 if (ref)
                   ref->exec_end(mState, seq, parent);
