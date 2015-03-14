@@ -194,9 +194,12 @@ namespace xnor {
               } else {
                 if (ref)
                   ref->exec_end(mState, seq, parent);
+
+                /*
                 seq->remove_dependents(id());
                 //XXX there is a problem here when we overlap the same sequence object
                 seq->remove_dependency(mParentID, id());
+                */
               }
             }
 
@@ -220,7 +223,7 @@ namespace xnor {
           //add a dependency from this to that evaluator
           std::shared_ptr<PeriodicSched<StateStorage>> ref = shared_from_this();
           auto e = std::make_shared<PeriodicEvaluator>(ref, id());
-          seq->add_dependency(id(), e->id());
+          //XXX seq->add_dependency(id(), e->id());
 
           e->exec_start(seq, parent);
           seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
