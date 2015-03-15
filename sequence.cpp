@@ -173,6 +173,7 @@ namespace xnor {
       if (ob) {
         ob->location_jumped(this, offset);
       } else {
+        cerr << "couldn't get pointer" << endl;
         //XXX delete observer?
       }
     }
@@ -227,7 +228,7 @@ namespace xnor {
 
   void SchedulePlayer::remove_observer(SchedulePlayerObserver * observer) {
     auto it = mObservers.find(observer);
-    if (it != mObservers.end())
+    if (it == mObservers.end())
       return;
     mObservers.erase(it);
   }

@@ -16,12 +16,11 @@ namespace xnor {
 
   typedef SchedulePlayer Parent;
 
-  enum se_state_t {SE_START, SE_END};
-  enum p_state_t {P_START, P_PERIODIC, P_END};
+  enum se_state_t {SE_START, SE_END, SE_JUMPED};
+  enum p_state_t {P_START, P_PERIODIC, P_END, P_JUMPED};
 
   typedef std::function<void(Seq * seq, Sched * owner, Parent * parent)> seq_func_t;
   typedef std::function<void(se_state_t state, Seq * seq, Sched * owner, Parent * parent)> start_end_func_t;
-  typedef std::function<bool(p_state_t state, Seq * seq, Sched * owner, Parent * parent)> seq_periodic_func_t;
 
   typedef std::shared_ptr<Sched> SchedPtr;
   typedef std::shared_ptr<Schedule> SchedulePtr;
@@ -181,7 +180,7 @@ namespace xnor {
     //class PeriodicSched : public Sched, public std::enable_shared_from_this<PeriodicSched<StateStorage>> {
     class PeriodicSched : public Sched {
       private:
-        class PeriodicEvaluator : public Sched {
+        class PeriodicEvaluator : public Sched, public SchedulePlayerObserver {
           public:
             PeriodicEvaluator(std::weak_ptr<PeriodicSched<StateStorage>> periodic, sched_id_t parent_id) {
               mPeriodic = periodic;
@@ -198,6 +197,7 @@ namespace xnor {
               } else {
                 if (ref)
                   ref->exec_end(mState, seq, parent);
+                parent->remove_observer(this);
               }
             }
 
@@ -205,6 +205,10 @@ namespace xnor {
               std::shared_ptr<PeriodicSched> ref = mPeriodic.lock();
               if (ref)
                 ref->exec_start(mState, seq, parent);
+            }
+
+            virtual void location_jumped(SchedulePlayer * player, seq_tick_t offset) {
+              //XXX do something
             }
 
             sched_id_t parent_id() const { return mParentID; }
@@ -221,6 +225,7 @@ namespace xnor {
           std::shared_ptr<PeriodicSched<StateStorage>> ref = shared_from_this();
           auto e = std::make_shared<PeriodicEvaluator>(ref, id());
 
+          parent->add_observer(e);
           e->exec_start(seq, parent);
           seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());
         }
