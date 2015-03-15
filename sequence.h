@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <list>
 #include <memory>
 
@@ -29,7 +30,12 @@ namespace xnor {
   typedef int seq_tick_t;
   typedef unsigned int sched_id_t;
 
-  class Sched : public std::enable_shared_from_this<Sched>{
+  class SchedulePlayerObserver {
+    public:
+      virtual void location_jumped(SchedulePlayer * player, seq_tick_t offset) = 0;
+  };
+
+  class Sched : public std::enable_shared_from_this<Sched> {
     public:
       Sched();
       virtual void exec(Seq * seq, Parent * parent) = 0;
@@ -102,6 +108,10 @@ namespace xnor {
       void tick(Seq * seq);
       void ms_per_tick(unsigned int ms) { mMSperTick = ms; }
 
+      void add_observer(std::shared_ptr<SchedulePlayerObserver> observer);
+      void remove_observer(std::shared_ptr<SchedulePlayerObserver> observer);
+      void remove_observer(SchedulePlayerObserver * observer);
+
     protected:
       SchedulePlayer();
       void schedule(SchedulePtr schedule);
@@ -113,6 +123,7 @@ namespace xnor {
 
       unsigned int ms_per_tick() const { return mMSperTick; }
       unsigned int mMSperTick = 10;
+      std::unordered_map<SchedulePlayerObserver *, std::weak_ptr<SchedulePlayerObserver>> mObservers;
   };
 
   /*
@@ -149,12 +160,6 @@ namespace xnor {
       void schedule_absolute(double seconds_from_now, SchedPtr sched, SchedulePlayerPtr parent);
       void schedule_absolute(double seconds_from_now, seq_func_t func, SchedulePlayerPtr parent);
 
-      //sets up a dependency so that when parent is removed, child will be too
-      void add_dependency(sched_id_t parent, sched_id_t child);
-      void remove_dependency(sched_id_t parent, sched_id_t child);
-
-      void remove_dependents(sched_id_t parent);
-
       void tick();
     private:
       struct abs_sched_t {
@@ -170,7 +175,6 @@ namespace xnor {
       SchedulePtr mSchedule;
       std::list<abs_sched_t> mSeqAbsolute;
       seq_tick_t mTicksAbsolute = 0;
-      std::map<sched_id_t, std::list<sched_id_t> > mDependencies;
   };
 
   template <typename StateStorage>
@@ -194,12 +198,6 @@ namespace xnor {
               } else {
                 if (ref)
                   ref->exec_end(mState, seq, parent);
-
-                /*
-                seq->remove_dependents(id());
-                //XXX there is a problem here when we overlap the same sequence object
-                seq->remove_dependency(mParentID, id());
-                */
               }
             }
 
@@ -220,10 +218,8 @@ namespace xnor {
 
         virtual void exec(Seq * seq, Parent * parent) {
           //create a copy and schedule an evaluator with that copy
-          //add a dependency from this to that evaluator
           std::shared_ptr<PeriodicSched<StateStorage>> ref = shared_from_this();
           auto e = std::make_shared<PeriodicEvaluator>(ref, id());
-          //XXX seq->add_dependency(id(), e->id());
 
           e->exec_start(seq, parent);
           seq->schedule_absolute(ref->tick_period(), e, parent->shared_from_this());

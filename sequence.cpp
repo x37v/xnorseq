@@ -165,7 +165,17 @@ namespace xnor {
   }
 
   void SchedulePlayer::locate(seq_tick_t location) {
+    seq_tick_t offset = location - mCurrentLocation;
     mCurrentLocation = location;
+
+    for (auto& kv: mObservers) {
+      std::shared_ptr<SchedulePlayerObserver> ob = kv.second.lock();
+      if (ob) {
+        ob->location_jumped(this, offset);
+      } else {
+        //XXX delete observer?
+      }
+    }
   }
 
   void SchedulePlayer::tick(Seq * seq) {
@@ -201,6 +211,26 @@ namespace xnor {
     return mSchedule->schedule(location, func, push_front);
   }
   */
+
+  void SchedulePlayer::add_observer(std::shared_ptr<SchedulePlayerObserver> observer) {
+    assert(observer);
+    auto it = mObservers.find(observer.get());
+    if (it != mObservers.end())
+      return;
+    mObservers[observer.get()] = observer; //weak
+  }
+
+  void SchedulePlayer::remove_observer(std::shared_ptr<SchedulePlayerObserver> observer) {
+    assert(observer);
+    remove_observer(observer.get());
+  }
+
+  void SchedulePlayer::remove_observer(SchedulePlayerObserver * observer) {
+    auto it = mObservers.find(observer);
+    if (it != mObservers.end())
+      return;
+    mObservers.erase(it);
+  }
 
   Seq::Seq() : SchedulePlayer() {
     mSchedule = SchedulePtr(new Schedule);
@@ -249,49 +279,6 @@ namespace xnor {
   void Seq::schedule_absolute(double seconds_from_now, seq_func_t func, SchedulePlayerPtr parent) {
     SchedPtr sched(new SchedFunc(func));
     return schedule_absolute(seconds_from_now, sched, parent);
-  }
-
-  void Seq::add_dependency(sched_id_t parent, sched_id_t child) {
-    auto loc = mDependencies.find(parent);
-    if (loc != mDependencies.end())
-      loc->second.push_back(child);
-    else {
-      std::list<sched_id_t> deps({child});
-      mDependencies[parent] = deps;
-    }
-  }
-
-  void Seq::remove_dependency(sched_id_t parent, sched_id_t child) {
-    auto loc = mDependencies.find(parent);
-
-    //remove id child from parent and remove parent if it is now empty
-    if (loc != mDependencies.end()) {
-      auto id_itr = loc->second.begin();
-      while (id_itr != loc->second.end()) {
-        if (*id_itr == child)
-          id_itr = loc->second.erase(id_itr);
-      }
-      if (loc->second.empty())
-        mDependencies.erase(loc);
-    }
-  }
-
-  void Seq::remove_dependents(sched_id_t parent) {
-    auto loc = mDependencies.find(parent);
-    if (loc != mDependencies.end()) {
-      //remove all dependents from the schedule
-      for (auto dep_id: loc->second) {
-        auto it = mSeqAbsolute.begin();
-        while (it != mSeqAbsolute.end()) {
-          if (it->sched->id() == dep_id) {
-            remove_dependents(dep_id);
-            it = mSeqAbsolute.erase(it);
-          }
-        }
-      }
-      //erase this dependency entry
-      mDependencies.erase(loc);
-    }
   }
 
   void Seq::tick() {
