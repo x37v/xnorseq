@@ -165,6 +165,7 @@ namespace xnor {
   }
 
   void SchedulePlayer::locate(seq_tick_t location) {
+    mLastLocation = mCurrentLocation;
     seq_tick_t offset = location - mCurrentLocation;
     mCurrentLocation = location;
 
@@ -183,6 +184,7 @@ namespace xnor {
     if (!mSchedule)
       return;
 
+    mLastLocation = mCurrentLocation;
     auto cur = mSchedule->list().find(mCurrentLocation);
     mCurrentLocation++;
     if (cur != mSchedule->list().end()) {
