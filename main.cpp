@@ -37,7 +37,17 @@ int main(int argc, char * argv[]) {
   seq->schedule(0, s);
   */
 
-  seq->schedule(15, [](xnor::Seq *s, xnor::Sched * owner, xnor::Parent *parent) { s->locate(1); });
+  seq->schedule(15, [](xnor::Seq *s, xnor::Sched * owner, xnor::Parent *parent) {
+      static bool once = false;
+      if (!once) {
+        once = true;
+        cout << "***************** Scheduled new jump" << endl;
+        s->schedule(3, [](xnor::Seq *s, xnor::Sched * owner, xnor::Parent *parent) {
+          s->locate(1);
+        });
+      }
+      s->locate(1);
+  });
 
   Rando r;
   seq->schedule(3, std::bind(&Rando::exec, r, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
@@ -63,12 +73,15 @@ int main(int argc, char * argv[]) {
 
     auto pfunc = [](xnor::p_state_t state, std::shared_ptr<int> count, xnor::Seq * s, xnor::Sched * o, xnor::Parent * p) -> bool {
       switch (state) {
+        case xnor::P_JUMPED:
+          cout << "periodic " << count << ": jumped!!" << endl;
         case xnor::P_END:
           cout << "periodic " << count << ": end" << endl;
           return false; //ignored
         case xnor::P_START:
           *count = 0;
           cout << "periodic " << count << ": start" << endl;
+          return true; //ignored
         default:
           cout << "periodic " << count << ": " << *count << endl;
           if ((*count)++ > 3)

@@ -190,14 +190,20 @@ namespace xnor {
 
             virtual void exec(Seq * seq, Parent * parent) {
               std::shared_ptr<PeriodicSched> ref = mPeriodic.lock();
-
-              if (ref && ref->exec_periodic(mState, seq, parent)) {
-                SchedPtr self = shared_from_this();
-                seq->schedule_absolute(ref->tick_period(), self, parent->shared_from_this());
-              } else {
-                if (ref)
-                  ref->exec_end(mState, seq, parent);
+              if (mJumped) {
                 parent->remove_observer(this);
+                if (ref)
+                  ref->exec_jumped(mState, seq, parent);
+              } else {
+
+                if (ref && ref->exec_periodic(mState, seq, parent)) {
+                  SchedPtr self = shared_from_this();
+                  seq->schedule_absolute(ref->tick_period(), self, parent->shared_from_this());
+                } else {
+                  if (ref)
+                    ref->exec_end(mState, seq, parent);
+                  parent->remove_observer(this);
+                }
               }
             }
 
@@ -207,8 +213,9 @@ namespace xnor {
                 ref->exec_start(mState, seq, parent);
             }
 
-            virtual void location_jumped(SchedulePlayer * player, seq_tick_t offset) {
-              //XXX do something
+            virtual void location_jumped(SchedulePlayer * /* player */, seq_tick_t /* offset */) {
+              //XXX eventually we should check the offset and see if we should actually play through
+              mJumped = true;
             }
 
             sched_id_t parent_id() const { return mParentID; }
@@ -216,6 +223,7 @@ namespace xnor {
             std::weak_ptr<PeriodicSched> mPeriodic;
             sched_id_t mParentID;
             std::shared_ptr<StateStorage> mState;
+            bool mJumped = false;
         };
       public:
         seq_tick_t tick_period() const { return mTickPeriod; }
@@ -236,6 +244,8 @@ namespace xnor {
         //true to keep in schedule
         virtual bool exec_periodic(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) = 0;
 
+        //we jumped, do any cleanup we might need to do, exec_end will not be called
+        virtual void exec_jumped(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) = 0;
 
         //couldn't get enable_shared_from_this inherited into this class so just created our own..
         std::shared_ptr<PeriodicSched<StateStorage>> shared_from_this() { return std::static_pointer_cast<PeriodicSched<StateStorage>>(Sched::shared_from_this()); }
@@ -262,6 +272,10 @@ namespace xnor {
 
         virtual bool exec_periodic(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) {
           return mPeriodicFunc(P_PERIODIC, state_storage, seq, this, parent);
+        }
+
+        virtual void exec_jumped(std::shared_ptr<StateStorage> state_storage, Seq * seq, Parent * parent) {
+          mPeriodicFunc(P_JUMPED, state_storage, seq, this, parent);
         }
 
       private:
