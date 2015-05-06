@@ -101,6 +101,7 @@ namespace xnor {
 
       virtual void locate(seq_tick_t location);
       seq_tick_t location() const { return mCurrentLocation; }
+      seq_tick_t location_last() const { return mLastLocation; }
 
       SchedulePtr schedule() { return mSchedule; }
 
@@ -119,6 +120,7 @@ namespace xnor {
 
     private:
       seq_tick_t mCurrentLocation = 0;
+      seq_tick_t mLastLocation = 0;
 
       unsigned int ms_per_tick() const { return mMSperTick; }
       unsigned int mMSperTick = 10;
@@ -156,8 +158,10 @@ namespace xnor {
       void schedule_absolute(seq_tick_t tick_offset, SchedPtr sched, SchedulePlayerPtr parent);
       void schedule_absolute(seq_tick_t tick_offset, seq_func_t func, SchedulePlayerPtr parent);
 
+      /*
       void schedule_absolute(double seconds_from_now, SchedPtr sched, SchedulePlayerPtr parent);
       void schedule_absolute(double seconds_from_now, seq_func_t func, SchedulePlayerPtr parent);
+      */
 
       void tick();
     private:

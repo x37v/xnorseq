@@ -165,6 +165,7 @@ namespace xnor {
   }
 
   void SchedulePlayer::locate(seq_tick_t location) {
+    mLastLocation = mCurrentLocation;
     seq_tick_t offset = location - mCurrentLocation;
     mCurrentLocation = location;
 
@@ -183,6 +184,7 @@ namespace xnor {
     if (!mSchedule)
       return;
 
+    mLastLocation = mCurrentLocation;
     auto cur = mSchedule->list().find(mCurrentLocation);
     mCurrentLocation++;
     if (cur != mSchedule->list().end()) {
@@ -272,6 +274,7 @@ namespace xnor {
     return schedule_absolute(tick_offset, sched, parent);
   }
 
+  /*
   void Seq::schedule_absolute(double seconds_from_now, SchedPtr sched, SchedulePlayerPtr parent) {
     //unsigned int milliseconds = static_cast<unsigned int>(seconds_from_now * 1000.0);
     //XXX do it!
@@ -281,6 +284,7 @@ namespace xnor {
     SchedPtr sched(new SchedFunc(func));
     return schedule_absolute(seconds_from_now, sched, parent);
   }
+  */
 
   void Seq::tick() {
     SchedulePlayer::tick(this);
