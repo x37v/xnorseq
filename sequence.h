@@ -158,8 +158,10 @@ namespace xnor {
       void schedule_absolute(seq_tick_t tick_offset, SchedPtr sched, SchedulePlayerPtr parent);
       void schedule_absolute(seq_tick_t tick_offset, seq_func_t func, SchedulePlayerPtr parent);
 
+      /*
       void schedule_absolute(double seconds_from_now, SchedPtr sched, SchedulePlayerPtr parent);
       void schedule_absolute(double seconds_from_now, seq_func_t func, SchedulePlayerPtr parent);
+      */
 
       void tick();
     private:
