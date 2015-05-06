@@ -5,6 +5,11 @@ Sequencer in progress
 
 using c++11.. not likely to be real-time safe, ever
 
+BUILD
+------
+
+to use clang:
+CXX=clang++ make
 
 TODO/QUESTIONS
 ------
