@@ -3,3 +3,6 @@ script: make
 compiler:
   - clang
   - gcc
+notifications:
+  email:
+    - alex@x37v.info
