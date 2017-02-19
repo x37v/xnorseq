@@ -1,35 +1,49 @@
 #pragma once
 
-#include <cinttypes>
+#include <boost/any.hpp>
+#include <map>
+#include <iostream>
 
 namespace xnorseq {
-  typedef uint64_t object_id;
+  typedef unsigned int timepoint;
+  class Scheduler;
 
-  class Object;
-  class Event;
-  class Segment;
+  std::map<unsigned int, boost::any> data;
+  unsigned int cID;
 
-  class Object {
+  class Callable {
     public:
-      Object();
-      object_id id() const { return mID; }
-    private:
-      object_id mID;
+      virtual ~Callable() {}
+      virtual bool call(Scheduler* s, timepoint t) const = 0;
   };
 
-  class Event : public Object {
-    void execute(Segment * context, T time);
-  };
+  //crtp https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
+  template <typename T, typename D>
+    class Executor : public Callable {
+      public:
+        Executor() { mID = cID++; }
+        unsigned int id() { return mID; }
 
-  class Segment : public Object {
-    public:
-      //execute from time_start up to but not including time_end
-      template <typename T>
-      void execute(Segment * context, T time_start, T time_end) {
-      }
+        //override this
+        bool exec(Scheduler * /*s*/, timepoint /*t*/, D /*arg*/) const {
+          //XXX compile time assert that this is overridden?
+          return false;
+        }
 
-      template <typename T>
-      void schedule(T time, Event e) {
-      }
+        virtual bool call(Scheduler* s, timepoint t) const {
+          return static_cast<const T*>(this)->exec(s, t, get());
+        }
+
+        //XXX need an atomic set/get or 
+        void set(D d) { data[mID] = d; }
+        D get() const { return boost::any_cast<D>(data[mID]); }
+
+        unsigned int id() const { return mID; }
+      private:
+        unsigned int mID = 0;
     };
+
+  class Scheduler {
+  };
+
 }

@@ -3,20 +3,41 @@
 
 using std::cout;
 using std::endl;
-using namespace xnorseq;
 
-int main(int argc, char * argv[]) {
-  Segment seg;
+class Blah : public xnorseq::Executor<Blah, int> {
+  public:
+    bool exec(xnorseq::Scheduler *s, xnorseq::timepoint t, int arg) const {
+      cout << "int " << arg++ << endl;
+      return true;
+    }
+};
 
-  Event e;
-  Event e2;
-  seg.schedule(2, e);
-  seg.schedule(32, e2);
-  seg.execute(nullptr, 23, 25);
+class FBlah : public xnorseq::Executor<FBlah, float> {
+  public:
+    bool exec(xnorseq::Scheduler *s, xnorseq::timepoint t, float arg) const {
+      cout << arg << endl;
+      return true;
+    }
+};
 
-  cout << e.id() << endl;
-  cout << e2.id() << endl;
-  cout << seg.id() << endl;
+int main(int argc, char* argv[]) {
+  Blah b;
+  b.set(234);
+  FBlah f;
+  f.set(23.4);
+
+  xnorseq::Callable* e;
+  e = &b;
+
+  xnorseq::Scheduler s;
+  xnorseq::timepoint t = 0;
+
+  b.call(&s, t);
+  b.call(&s, t);
+  b.call(&s, t);
+  b.call(&s, t);
+  f.call(&s, t);
+  e->call(&s, t);
 
   return 0;
-}
+};
