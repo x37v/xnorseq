@@ -3,47 +3,96 @@
 #include <boost/any.hpp>
 #include <map>
 #include <iostream>
+#include <atomic>
 
 namespace xnorseq {
-  typedef unsigned int timepoint;
   class Scheduler;
+  class Callable;
 
-  std::map<unsigned int, boost::any> data;
-  unsigned int cID;
+  typedef unsigned int timepoint;
+  typedef unsigned int timedur;
+  typedef unsigned long obj_id_t; 
+  typedef Callable * CallablePtr;
+
+
+  namespace {
+    std::map<obj_id_t, boost::any> obj_data;
+    std::atomic<obj_id_t> obj_ids;
+  }
+
+  class CallData {
+    public:
+      CallData(Scheduler * s) : mScheduler(s) {}
+      Scheduler * scheduler() const;
+      timepoint time_now() const;
+      void time_now(timepoint t) { mTimeNow = t; }
+    private:
+      Scheduler * mScheduler = nullptr;
+      timepoint mTimeNow = 0;
+  };
 
   class Callable {
     public:
       virtual ~Callable() {}
-      virtual bool call(Scheduler* s, timepoint t) const = 0;
+      virtual void call(CallData cd) const = 0;
   };
 
   //crtp https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
   template <typename T, typename D>
     class Executor : public Callable {
       public:
-        Executor() { mID = cID++; }
+        Executor() { mID = obj_ids++; }
+        virtual ~Executor() { obj_data.erase(id()); }
+
         unsigned int id() { return mID; }
 
         //override this
-        bool exec(Scheduler * /*s*/, timepoint /*t*/, D /*arg*/) const {
-          //XXX compile time assert that this is overridden?
-          return false;
-        }
+        void exec(CallData /*cd*/, D /*arg*/) const { /*XXX compile time assert that this is overridden? */ }
 
-        virtual bool call(Scheduler* s, timepoint t) const {
-          return static_cast<const T*>(this)->exec(s, t, get());
-        }
+        virtual void call(CallData cd) const { static_cast<const T*>(this)->exec(cd, get()); }
+
+        //override this to get other durations
+        timedur duration(D arg) const { return static_cast<const T*>(this)->duration(arg); }
 
         //XXX need an atomic set/get or 
-        void set(D d) { data[mID] = d; }
-        D get() const { return boost::any_cast<D>(data[mID]); }
+        void set(D d) const { obj_data[id()] = d; }
+        D get() const { return boost::any_cast<D>(obj_data[id()]); }
 
-        unsigned int id() const { return mID; }
+        //XXX need a get based on parent chain and location within parent
+
+        obj_id_t id() const { return mID; }
       private:
-        unsigned int mID = 0;
+        obj_id_t mID = 0;
     };
 
-  class Scheduler {
+
+  class ScheduleData {
+    public:
+      void schedule(timepoint t, CallablePtr c) {
+        //XXX use better, realtime safe structure and insert sorted
+        mSchedule.push_back(CallableAt(t, c));
+      }
+    private:
+      struct CallableAt {
+        CallableAt(timepoint t, CallablePtr c) : mTime(t), mCallable(c) {}
+        timepoint time() { return mTime; }
+        CallablePtr callable() { return mCallable; }
+        timepoint mTime;
+        CallablePtr mCallable;
+      };
+      std::vector<CallableAt> mSchedule;
   };
 
+  class Scheduler : public Executor<Scheduler, ScheduleData> {
+    public:
+      void schedule(timepoint t, CallablePtr c) const {
+        //XXX needs to happen in the thread that runs the schedule
+        ScheduleData sd = get();
+        sd.schedule(t, c);
+      };
+
+    //get items from timepoint to up to t + d
+    //needs instance data.. based on parent and location scheuled..
+    //std::tuple<start, end> iterator(timepoint t, duration d);
+  };
 }
