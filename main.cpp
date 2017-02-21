@@ -6,20 +6,25 @@ using std::endl;
 
 class Blah : public xnorseq::Executor<Blah, int> {
   public:
+    Blah(xnorseq::Seq* seq, int d) : xnorseq::Executor<Blah, int>(seq, d) {}
+
     void exec(xnorseq::CallData /*cd*/, int arg) const {
       cout << "int " << arg++ << endl;
-      set(arg);
+      //set_data(arg);
     }
 };
 
-class FBlah : public xnorseq::Executor<FBlah, float> {
-  public:
-    void exec(xnorseq::CallData /*cd*/, float arg) const {
-      cout << arg << endl;
-    }
-};
+//class FBlah : public xnorseq::Executor<FBlah, float> {
+//  public:
+//    void exec(xnorseq::CallData /*cd*/, float arg) const {
+//      cout << arg << endl;
+//    }
+//};
 
 int main(int argc, char* argv[]) {
+  xnorseq::Seq seq;
+  xnorseq::ObjectRef r = seq.make_obj<Blah>(22);
+  /*
   Blah b;
   b.set(234);
   FBlah f;
@@ -37,6 +42,8 @@ int main(int argc, char* argv[]) {
   b.call(cd);
   f.call(cd);
   e->call(cd);
+  */
 
   return 0;
-};
+}
+
