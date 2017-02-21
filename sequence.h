@@ -11,17 +11,12 @@ namespace xnorseq {
   class Seq;
   class Scheduler;
   class Callable;
-  class DataStore;
 
   typedef unsigned int timepoint;
   typedef unsigned int timedur;
   typedef unsigned long obj_id_t; 
   typedef std::shared_ptr<Callable> CallablePtr;
 
-
-  namespace {
-    typedef std::map<obj_id_t, boost::any> data_store_t;
-  }
 
   class ObjectRef {
     public:
@@ -83,7 +78,7 @@ namespace xnorseq {
         }
     private:
       std::map<obj_id_t, CallablePtr> mObjects;
-      data_store_t mObjectData;
+      std::map<obj_id_t, boost::any> mObjectData;
       std::atomic<obj_id_t> mObjectIds;
   };
 
