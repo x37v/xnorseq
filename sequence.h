@@ -57,7 +57,7 @@ namespace xnorseq {
     public:
       Seq() : mObjectIds(0) {}
 
-      //factory, just gives you an id back
+      //factory
       template<class T, typename D, class... Args >
         ObjectRef make_obj(D data, Args&&... args) {
           const obj_id_t id = mObjectIds++;
