@@ -58,11 +58,11 @@ namespace xnorseq {
       Seq() : mObjectIds(0) {}
 
       //factory
-      template<class T, typename D, class... Args >
-        ObjectRef make_obj(D data, Args&&... args) {
+      template<class T, class... Args >
+        ObjectRef make_obj(Args&&... args) {
           const obj_id_t id = mObjectIds++;
 
-          CallablePtr ptr = std::make_shared<T>(this, data, std::forward<Args>(args)...);
+          CallablePtr ptr = std::make_shared<T>(this, std::forward<Args>(args)...);
           ptr->mID = id;
           mObjects[id] = ptr;
           return ObjectRef(ptr);
@@ -80,7 +80,7 @@ namespace xnorseq {
   template <typename T, typename ObjData>
     class Executor : public Callable {
       public:
-        Executor(Seq * seq, ObjData data) : Callable(seq), mData(data) { }
+        Executor(Seq * seq, ObjData data = ObjData()) : Callable(seq), mData(data) { }
 
         //override this
         void exec(CallData /*cd*/, ObjData& /*arg*/) const { /*XXX compile time assert that this is overridden? */ }
@@ -93,6 +93,17 @@ namespace xnorseq {
       private:
         ObjData mData;
     };
+
+  template <typename ObjData>
+    class FuncExec : public xnorseq::Executor<FuncExec<ObjData>, ObjData> {
+    public:
+      FuncExec(xnorseq::Seq* seq, std::function<void(xnorseq::CallData, ObjData&)> f, ObjData d = ObjData()) : 
+        xnorseq::Executor<FuncExec<ObjData>, ObjData>(seq, d), mFunc(f) {}
+
+      void exec(xnorseq::CallData cd, ObjData& arg) const { mFunc(cd, arg); }
+    private:
+      std::function<void(xnorseq::CallData, ObjData&)> mFunc;
+  };
 
 
   class ScheduleData {

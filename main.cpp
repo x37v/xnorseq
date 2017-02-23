@@ -23,9 +23,20 @@ class Blah : public xnorseq::Executor<Blah, int> {
 int main(int /*argc*/, char** /*argv*/) {
   xnorseq::Seq seq;
   xnorseq::ObjectRef r = seq.make_obj<Blah>(22);
+
+  auto f = [](xnorseq::CallData cd, int& d) {
+    cout << d++ << endl;
+  };
+  auto fr = seq.make_obj<xnorseq::FuncExec<int>>(f, 1);
+
   seq.exec(r);
   seq.exec(r);
   seq.exec(r);
+
+  seq.exec(fr);
+  seq.exec(fr);
+  seq.exec(fr);
+  seq.exec(fr);
 
   /*
   Blah b;
