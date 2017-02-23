@@ -13,16 +13,19 @@ class Blah : public xnorseq::Executor<Blah, int> {
     }
 };
 
-//class FBlah : public xnorseq::Executor<FBlah, float> {
-//  public:
-//    void exec(xnorseq::CallData /*cd*/, float arg) const {
-//      cout << arg << endl;
-//    }
-//};
+class FBlah : public xnorseq::Executor<FBlah, float> {
+  public:
+    //XXX why do we have to create these constructors?
+    FBlah(xnorseq::Seq* seq, float d = float()) : xnorseq::Executor<FBlah, float>(seq, d) {}
+    void exec(xnorseq::CallData /*cd*/, float& arg) const {
+      cout << "float: " << arg++ << endl;
+    }
+};
 
 int main(int /*argc*/, char** /*argv*/) {
   xnorseq::Seq seq;
   xnorseq::ObjectRef r = seq.make_obj<Blah>(22);
+  r = seq.make_obj<FBlah>(23.3);
 
   auto f = [](xnorseq::CallData cd, int& d) {
     cout << d++ << endl;
