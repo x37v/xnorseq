@@ -4,13 +4,12 @@
 using std::cout;
 using std::endl;
 
-class Blah : public xnorseq::Executor<Blah, int, int> {
+class Blah : public xnorseq::Executor<Blah, int> {
   public:
-    Blah(xnorseq::Seq* seq, int d) : xnorseq::Executor<Blah, int, int>(seq, d) {}
+    Blah(xnorseq::Seq* seq, int d) : xnorseq::Executor<Blah, int>(seq, d) {}
 
-    void exec(xnorseq::CallData /*cd*/, int& arg, int id) const {
+    void exec(xnorseq::CallData /*cd*/, int& arg) const {
       cout << "int " << arg++ << endl;
-      cout << "instance data " << id << endl;
     }
 };
 
@@ -21,7 +20,7 @@ class Blah : public xnorseq::Executor<Blah, int, int> {
 //    }
 //};
 
-int main(int argc, char* argv[]) {
+int main(int /*argc*/, char** /*argv*/) {
   xnorseq::Seq seq;
   xnorseq::ObjectRef r = seq.make_obj<Blah>(22);
   seq.exec(r);

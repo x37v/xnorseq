@@ -77,23 +77,21 @@ namespace xnorseq {
   };
 
   //crtp https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
-  template <typename T, typename ObjData, typename InstData = void *>
+  template <typename T, typename ObjData>
     class Executor : public Callable {
       public:
         Executor(Seq * seq, ObjData data) : Callable(seq), mData(data) { }
 
         //override this
-        void exec(CallData /*cd*/, ObjData& /*arg*/, InstData /*inst*/) const { /*XXX compile time assert that this is overridden? */ }
+        void exec(CallData /*cd*/, ObjData& /*arg*/) const { /*XXX compile time assert that this is overridden? */ }
 
-        virtual void call(CallData cd) { static_cast<T*>(this)->exec(cd, mData, get_instance_data(cd)); }
+        virtual void call(CallData cd) { static_cast<T*>(this)->exec(cd, mData); }
 
         //override this to get other durations
         timedur duration(ObjData arg) const { return static_cast<const T*>(this)->duration(arg); }
 
       private:
         ObjData mData;
-
-        InstData get_instance_data(CallData /*cd*/) { return InstData(); }
     };
 
 
