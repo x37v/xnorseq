@@ -52,30 +52,6 @@ namespace xnorseq {
       friend class Seq;
   };
 
-  //top level dog
-  class Seq {
-    public:
-      Seq() : mObjectIds(0) {}
-
-      //factory
-      template<class T, class... Args >
-        ObjectRef make_obj(Args&&... args) {
-          const obj_id_t id = mObjectIds++;
-
-          CallablePtr ptr = std::make_shared<T>(this, std::forward<Args>(args)...);
-          ptr->mID = id;
-          mObjects[id] = ptr;
-          return ObjectRef(ptr);
-        };
-
-      void clear_data(const Callable* c);
-
-      void exec(ObjectRef r);
-    private:
-      std::map<obj_id_t, std::weak_ptr<Callable>> mObjects;
-      std::atomic<obj_id_t> mObjectIds;
-  };
-
   //crtp https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
   template <typename T, typename ObjData>
     class Executor : public Callable {
@@ -104,6 +80,36 @@ namespace xnorseq {
     private:
       std::function<void(xnorseq::CallData, ObjData&)> mFunc;
   };
+
+  //top level dog
+  class Seq {
+    public:
+      Seq() : mObjectIds(0) {}
+
+      //factory
+      template<class T, class... Args >
+        ObjectRef make_obj(Args&&... args) {
+          const obj_id_t id = mObjectIds++;
+
+          CallablePtr ptr = std::make_shared<T>(this, std::forward<Args>(args)...);
+          ptr->mID = id;
+          mObjects[id] = ptr;
+          return ObjectRef(ptr);
+        };
+
+      template<class T>
+        ObjectRef make_func_obj(std::function<void(CallData, T &d)> f, T d = T()) {
+          return make_obj<FuncExec<T>>(f, d);
+        };
+
+      void clear_data(const Callable* c);
+
+      void exec(ObjectRef r);
+    private:
+      std::map<obj_id_t, std::weak_ptr<Callable>> mObjects;
+      std::atomic<obj_id_t> mObjectIds;
+  };
+
 
 
   class ScheduleData {

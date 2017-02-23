@@ -30,7 +30,9 @@ int main(int /*argc*/, char** /*argv*/) {
   auto f = [](xnorseq::CallData cd, int& d) {
     cout << d++ << endl;
   };
+
   auto fr = seq.make_obj<xnorseq::FuncExec<int>>(f, 1);
+  fr = seq.make_func_obj<int>(f, 22);
 
   seq.exec(r);
   seq.exec(r);
