@@ -1,9 +1,8 @@
 #pragma once
 
-#include <boost/any.hpp>
 #include <memory>
+#include <vector>
 #include <map>
-#include <iostream>
 #include <atomic>
 #include <utility>
 
@@ -21,6 +20,7 @@ namespace xnorseq {
   class ObjectRef {
     public:
       ObjectRef(CallablePtr p) : mCallable(p) {}
+      obj_id_t id() const;
     private:
       CallablePtr mCallable;
   };
@@ -38,11 +38,11 @@ namespace xnorseq {
 
   class Callable {
     public:
-      Callable(Seq * seq) : mSeq(seq) {}
-      virtual ~Callable() {}
-      virtual void call(CallData cd) const = 0;
+      Callable(Seq * seq);
+      virtual ~Callable();
+      obj_id_t id() const;
 
-      obj_id_t id() const { return mID; }
+      virtual void call(CallData cd) = 0;
 
     protected:
       Seq * mSeq;
@@ -68,39 +68,32 @@ namespace xnorseq {
           return ObjectRef(ptr);
         };
 
-      template<typename T>
-        void set_data(const Callable* c, T d) {
-          mObjectData[c->id()] = d;
-        }
-      template<typename T>
-        T get_data(const Callable* c) {
-          return boost::any_cast<T>(mObjectData[c->id()]);
-        }
+      void clear_data(const Callable* c);
+
+      void exec(ObjectRef r);
     private:
-      std::map<obj_id_t, CallablePtr> mObjects;
-      std::map<obj_id_t, boost::any> mObjectData;
+      std::map<obj_id_t, std::weak_ptr<Callable>> mObjects;
       std::atomic<obj_id_t> mObjectIds;
   };
 
   //crtp https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
-  template <typename T, typename D>
+  template <typename T, typename ObjData, typename InstData = void *>
     class Executor : public Callable {
       public:
-        Executor(Seq * seq, D data) : Callable(seq) { }
+        Executor(Seq * seq, ObjData data) : Callable(seq), mData(data) { }
 
         //override this
-        void exec(CallData /*cd*/, D /*arg*/) const { /*XXX compile time assert that this is overridden? */ }
+        void exec(CallData /*cd*/, ObjData& /*arg*/, InstData /*inst*/) const { /*XXX compile time assert that this is overridden? */ }
 
-        virtual void call(CallData cd) const { static_cast<const T*>(this)->exec(cd, get_data()); }
+        virtual void call(CallData cd) { static_cast<T*>(this)->exec(cd, mData, get_instance_data(cd)); }
 
         //override this to get other durations
-        timedur duration(D arg) const { return static_cast<const T*>(this)->duration(arg); }
+        timedur duration(ObjData arg) const { return static_cast<const T*>(this)->duration(arg); }
 
-        //XXX need an atomic set/get or 
-        void set_data(D d) const { mSeq->set_data(this, d); }
-        D get_data() const { return mSeq->get_data<D>(this); }
+      private:
+        ObjData mData;
 
-        //XXX need a get based on parent chain and location within parent
+        InstData get_instance_data(CallData /*cd*/) { return InstData(); }
     };
 
 
