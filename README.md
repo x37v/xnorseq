@@ -3,9 +3,11 @@ xnorseq
 
 Sequencer in progress
 
-Time Types
+Time Type
 ---
-a variant of double [second], int64_t [tick] and some bar beat representation? (int64_t + double)?
+
+tick.. the clock indicates what that represents.. BPM, seconds.. etc...
+ticks_per_second for example..
 
 Event
 ---
