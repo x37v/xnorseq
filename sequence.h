@@ -10,6 +10,7 @@ namespace xnorseq {
   class Seq;
   class Scheduler;
   class Callable;
+  class ObjectRef;
 
   typedef unsigned int timepoint;
   typedef unsigned int timedur;
