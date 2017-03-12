@@ -3,6 +3,16 @@ xnorseq
 
 Sequencer in progress
 
+
+Seq:
+  * top level
+  * realtime allocator
+  * keeps track of objects
+  * messaging interface to objects
+  * exec method to run schedules
+
+
+
 Time Type
 ---
 
