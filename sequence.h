@@ -52,7 +52,7 @@ namespace xnorseq {
 
       //XXX make into realtime safe alloc
       template <typename T, class... Args>
-        EphemeralEventPtr make_event(Args&&... args) {
+        std::shared_ptr<T> make_event(Args&&... args) {
           return std::make_shared<T>(std::forward(args)...);
         }
     private:
@@ -71,7 +71,6 @@ namespace xnorseq {
     public:
       virtual void exec(timepoint t, ExecContext context) = 0;
   };
-
 
   template <typename T>
   class ScheduleItem {
@@ -103,29 +102,48 @@ namespace xnorseq {
         mSchedule.pop_front();
         return r;
       }
+
+      //XXX in the future use an iterator so we can keep track of where we were without 
+      //going through all the schedule
+      void each(timepoint start, timepoint end, std::function<void(ScheduleItemPtr)> func) {
+        auto it = mSchedule.begin();
+        while (it != mSchedule.end() && (*it)->time() > start)
+          it++;
+        while (it != mSchedule.end() && (*it)->time() <= end) {
+          func(*it);
+          it++;
+        }
+      }
     private:
       //XXX tmp
       std::deque<ScheduleItemPtr> mSchedule;
   };
 
-  /*
+  typedef Schedule<EventPtr> EventSchedule;
+  typedef std::shared_ptr<EventSchedule> EventSchedulePtr;
 
   class EphemeralSchedulePlayer : public EphemeralEvent {
     public:
-      void exec(timepoint t, Context context) {
-        //execute from last t until t... reschedule self if needed.
-      }
+      EphemeralSchedulePlayer(EventSchedulePtr schedule);
+      virtual void exec(timepoint t, ExecContext context);
+    private:
+      EventSchedulePtr mSchedule;
+      //Schedule<EventPtr>::iterator mIterator;
+      timepoint mTimeLast = 0;
   };
 
   class SchedulePlayer : public Event {
     public:
-      void exec(timepoint t, Context context) {
-        //insert an EphemeralSchedulePlayer into 'live' schedule..
-        EphemeralSchedulePlayerPtr e = context.make_obj<EphemeralSchedulePlayer>(mSchedule);
-        context.schedule(t, e);
-      }
+      SchedulePlayer(EventSchedulePtr s);
+      virtual void exec(timepoint t, ExecContext context);
+    private:
+      EventSchedulePtr mSchedule;
   };
-  */
+
+  class SchedulePlayerStart : public EphemeralEvent {
+    public:
+      SchedulePlayerStart(SchedulePlayerPtr player);
+  };
 
   class Seq {
     public:

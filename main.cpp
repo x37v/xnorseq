@@ -8,7 +8,15 @@ class Blah : public xnorseq::EphemeralEvent {
   public:
     void exec(xnorseq::timepoint t, xnorseq::ExecContext context) {
       cout << "BLAH " << t << endl;
-      context.schedule(context.now(), context.self());
+      context.schedule(context.now() + 1, context.self());
+    }
+};
+
+class Foo : public xnorseq::Event {
+  public:
+    void exec(xnorseq::timepoint t, xnorseq::ExecContext context) {
+      cout << "FOO " << t << endl;
+      //context.schedule(context.now() + 1, context.self());
     }
 };
 
@@ -17,6 +25,13 @@ int main(int /*argc*/, char** /*argv*/) {
 
   auto b = std::make_shared<Blah>();
   seq.schedule(32, b);
+
+
+  auto s = std::make_shared<xnorseq::EventSchedule>();
+
+  auto f = std::make_shared<Foo>();
+  s->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(f, 0));
+  s->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(f, 10));
 
   for (unsigned int i = 0; i < 1024; i+= 64) {
     seq.exec(i);
