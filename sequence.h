@@ -20,7 +20,7 @@ namespace xnorseq {
   typedef std::shared_ptr<SchedulePlayer> SchedulePlayerPtr;
   typedef std::shared_ptr<Seq> SeqPtr;
 
-  typedef std::function<void(timepoint, EventPtr)> ee_sched_func_t;
+  typedef std::function<void(timepoint, EventPtr)> sched_func_t;
   typedef std::function<void(timepoint)> seek_func_t;
 
   //context should include ability to:
@@ -34,7 +34,7 @@ namespace xnorseq {
   class ExecContext {
     public:
       //XXX pass allocator as well
-      ExecContext(timepoint now, ee_sched_func_t sched_func, seek_func_t seek_func);
+      ExecContext(timepoint now, sched_func_t sched_func, seek_func_t seek_func);
 
       timepoint now() const { return mNow; }
 
@@ -54,7 +54,7 @@ namespace xnorseq {
     private:
       timepoint mNow;
       EventPtr mItem = nullptr;
-      ee_sched_func_t mSchedFunc;
+      sched_func_t mSchedFunc;
       seek_func_t mSeekFunc;
   };
 
@@ -122,6 +122,7 @@ namespace xnorseq {
       //Schedule<EventPtr>::iterator mIterator;
       timepoint mTimeLast = 0;
       timepoint mParentTimeOffset = 0;
+      EventSchedule mLocalSchedule;
   };
 
   class StartScheduleEvent : public Event {
@@ -153,6 +154,6 @@ namespace xnorseq {
       }
 #endif
     private:
-      Schedule<EventPtr> mSchedule;
+      EventSchedule mSchedule;
   };
 }

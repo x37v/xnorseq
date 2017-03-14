@@ -5,7 +5,7 @@ using std::cout;
 using std::endl;
 
 namespace xnorseq {
-  ExecContext::ExecContext(timepoint now, ee_sched_func_t sched_func, seek_func_t seek_func) :
+  ExecContext::ExecContext(timepoint now, sched_func_t sched_func, seek_func_t seek_func) :
     mNow(now), mSchedFunc(sched_func), mSeekFunc(seek_func) { }
 
   void ExecContext::seek(timepoint t) {
@@ -26,6 +26,13 @@ namespace xnorseq {
   }
 
   void SchedulePlayer::exec(timepoint t, ExecContext context) {
+    sched_func_t sched_func = [this](timepoint tp, EventPtr e) {
+      auto se = std::make_shared<xnorseq::ScheduleItem<EventPtr>>(e, tp);
+      mLocalSchedule.schedule(se);
+    };
+    seek_func_t seek_func = nullptr;
+    ExecContext local_context(t - mParentTimeOffset, sched_func, seek_func);
+
     auto func = [this, context](Schedule<EventPtr>::ScheduleItemPtr item) {
       item->item()->exec(item->time(), context);
     };
@@ -34,6 +41,10 @@ namespace xnorseq {
 
     mSchedule->each(s, e, func);
     mTimeLast = t + 1;
+    while (auto ev = mLocalSchedule.pop_until(e)) {
+      context.self(ev->item());
+      ev->item()->exec(ev->time(), local_context);
+    }
 
     context.schedule(context.now() + 1, context.self());
   }
@@ -52,7 +63,7 @@ namespace xnorseq {
   }
 
   void Seq::exec(timepoint t) {
-    ee_sched_func_t sched_func = [this, t](timepoint tp, EventPtr e) {
+    sched_func_t sched_func = [this, t](timepoint tp, EventPtr e) {
       schedule(tp, e);
     };
 
