@@ -6,7 +6,7 @@
 
 namespace xnorseq {
   typedef long timepoint;
-  typedef unsigned long timedur;
+  typedef long timedur;
 
   class Event;
   //class ScheduleItem;
@@ -81,6 +81,9 @@ namespace xnorseq {
     public:
       typedef std::shared_ptr<ScheduleItem<T>> ScheduleItemPtr;
 
+      Schedule(timedur length = std::numeric_limits<timedur>::max()) : mLength(std::max(static_cast<timedur>(0), length)) {
+      }
+
       //add event to schedule
       //XXX realtime safe only
       void schedule(ScheduleItemPtr item) {
@@ -107,9 +110,13 @@ namespace xnorseq {
           it++;
         }
       }
+
+      timedur length() const { return mLength; }
+      void length(timedur v) { mLength = std::max(static_cast<timedur>(0), v); }
     private:
       //XXX tmp
       std::deque<ScheduleItemPtr> mSchedule;
+      timedur mLength;
   };
 
   typedef Schedule<EventPtr> EventSchedule;
