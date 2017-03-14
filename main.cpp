@@ -51,10 +51,10 @@ int main(int /*argc*/, char** /*argv*/) {
   sub->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(f, 1));
 
   auto sss = std::make_shared<xnorseq::StartScheduleEvent>(sub);
-  s->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(sss, 1));
+  s->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(sss, 100));
 
   for (unsigned int i = 0; i < 1024; i+= 64) {
-    seq.exec(i);
+    seq.exec(i, 64);
     cout << "up to " << i << endl;
   }
 

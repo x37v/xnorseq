@@ -34,9 +34,10 @@ namespace xnorseq {
   class ExecContext {
     public:
       //XXX pass allocator as well
-      ExecContext(timepoint now, sched_func_t sched_func, seek_func_t seek_func);
+      ExecContext(timepoint now, timedur exec_period, sched_func_t sched_func, seek_func_t seek_func);
 
       timepoint now() const { return mNow; }
+      timedur period() const { return mPeriod; }
 
       void self(EventPtr item) { mItem = item; }
       EventPtr self() const { return mItem; }
@@ -53,6 +54,7 @@ namespace xnorseq {
         }
     private:
       timepoint mNow;
+      timedur mPeriod;
       EventPtr mItem = nullptr;
       sched_func_t mSchedFunc;
       seek_func_t mSeekFunc;
@@ -115,14 +117,12 @@ namespace xnorseq {
 
   class SchedulePlayer : public Event {
     public:
-      SchedulePlayer(EventSchedulePtr schedule, timepoint start_offset);
+      SchedulePlayer(EventSchedulePtr schedule);
       virtual void exec(timepoint t, ExecContext context);
     private:
       EventSchedulePtr mSchedule;
-      //Schedule<EventPtr>::iterator mIterator;
-      timepoint mTimeLast = 0;
-      timepoint mParentTimeOffset = 0;
       EventSchedule mLocalSchedule;
+      timepoint mLocalTime = 0;
   };
 
   class StartScheduleEvent : public Event {
@@ -136,7 +136,7 @@ namespace xnorseq {
   class Seq {
     public:
       void schedule(timepoint t, EventPtr e);
-      void exec(timepoint t);
+      void exec(timepoint t, timedur period);
 
 #if 0
       //main thread side alloc, no need for realtime
@@ -154,6 +154,6 @@ namespace xnorseq {
       }
 #endif
     private:
-      EventSchedule mSchedule;
+      EventSchedule mLocalSchedule;
   };
 }
