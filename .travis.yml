@@ -2,4 +2,4 @@ language: cpp
 script: make
 compiler:
   - clang
-  - gcc
+    #XXX remove until it support c++11 - gcc
