@@ -45,13 +45,15 @@ namespace xnorseq {
       mSchedule->each(mLocalTime, std::min(time_next, mSchedule->length() - 1), func);
     else
       schedule_done = true;
+    mLocalTime = time_next;
 
+    //deal with absolute time
+    time_next = mLocalTimeAbsolute + context.period();
     while (auto ev = mLocalSchedule.pop_until(time_next)) {
       context.self(ev->item());
       ev->item()->exec(ev->time(), local_context);
     }
-
-    mLocalTime = time_next;
+    mLocalTimeAbsolute = time_next;
 
     //XXX remove from schedule when we have nothing left in mSchedule or mLocalSchedule?
     //XXX maybe mSchedule should have a 'length' that can be unrelated to the actual

@@ -132,6 +132,7 @@ namespace xnorseq {
       EventSchedulePtr mSchedule;
       EventSchedule mLocalSchedule;
       timepoint mLocalTime = 0;
+      timepoint mLocalTimeAbsolute = 0;
   };
 
   class StartScheduleEvent : public Event {
