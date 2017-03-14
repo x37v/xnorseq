@@ -5,26 +5,22 @@
 #include <algorithm>
 
 namespace xnorseq {
-  typedef unsigned long timepoint;
+  typedef long timepoint;
   typedef unsigned long timedur;
 
   class Event;
-  class EphemeralEvent;
   //class ScheduleItem;
   //class Schedule;
   class SchedulePlayer;
-  class EphemeralSchedulePlayer;
   class Seq;
 
   typedef std::shared_ptr<Event> EventPtr;
-  typedef std::shared_ptr<EphemeralEvent> EphemeralEventPtr;
   //typedef std::shared_ptr<ScheduleItem> ScheduleItemPtr;
   //typedef std::shared_ptr<Schedule> SchedulePtr;
   typedef std::shared_ptr<SchedulePlayer> SchedulePlayerPtr;
-  typedef std::shared_ptr<EphemeralSchedulePlayer> EphemeralSchedulePlayerPtr;
   typedef std::shared_ptr<Seq> SeqPtr;
 
-  typedef std::function<void(timepoint, EphemeralEventPtr)> ee_sched_func_t;
+  typedef std::function<void(timepoint, EventPtr)> ee_sched_func_t;
   typedef std::function<void(timepoint)> seek_func_t;
 
   //context should include ability to:
@@ -42,13 +38,13 @@ namespace xnorseq {
 
       timepoint now() const { return mNow; }
 
-      void self(EphemeralEventPtr item) { mItem = item; }
-      EphemeralEventPtr self() const { return mItem; }
+      void self(EventPtr item) { mItem = item; }
+      EventPtr self() const { return mItem; }
 
       //might not do anything
       void seek(timepoint t);
       //can reschedule self
-      void schedule(timepoint t, EphemeralEventPtr event);
+      void schedule(timepoint t, EventPtr event);
 
       //XXX make into realtime safe alloc
       template <typename T, class... Args>
@@ -57,14 +53,9 @@ namespace xnorseq {
         }
     private:
       timepoint mNow;
-      EphemeralEventPtr mItem = nullptr;
+      EventPtr mItem = nullptr;
       ee_sched_func_t mSchedFunc;
       seek_func_t mSeekFunc;
-  };
-
-  class EphemeralEvent {
-    public:
-      virtual void exec(timepoint t, ExecContext context) = 0;
   };
 
   class Event {
@@ -107,7 +98,7 @@ namespace xnorseq {
       //going through all the schedule
       void each(timepoint start, timepoint end, std::function<void(ScheduleItemPtr)> func) {
         auto it = mSchedule.begin();
-        while (it != mSchedule.end() && (*it)->time() > start)
+        while (it != mSchedule.end() && (*it)->time() < start)
           it++;
         while (it != mSchedule.end() && (*it)->time() <= end) {
           func(*it);
@@ -122,32 +113,28 @@ namespace xnorseq {
   typedef Schedule<EventPtr> EventSchedule;
   typedef std::shared_ptr<EventSchedule> EventSchedulePtr;
 
-  class EphemeralSchedulePlayer : public EphemeralEvent {
+  class SchedulePlayer : public Event {
     public:
-      EphemeralSchedulePlayer(EventSchedulePtr schedule);
+      SchedulePlayer(EventSchedulePtr schedule, timepoint start_offset);
       virtual void exec(timepoint t, ExecContext context);
     private:
       EventSchedulePtr mSchedule;
       //Schedule<EventPtr>::iterator mIterator;
       timepoint mTimeLast = 0;
+      timepoint mParentTimeOffset = 0;
   };
 
-  class SchedulePlayer : public Event {
+  class StartScheduleEvent : public Event {
     public:
-      SchedulePlayer(EventSchedulePtr s);
+      StartScheduleEvent(EventSchedulePtr schedule);
       virtual void exec(timepoint t, ExecContext context);
     private:
       EventSchedulePtr mSchedule;
   };
 
-  class SchedulePlayerStart : public EphemeralEvent {
-    public:
-      SchedulePlayerStart(SchedulePlayerPtr player);
-  };
-
   class Seq {
     public:
-      void schedule(timepoint t, EphemeralEventPtr e);
+      void schedule(timepoint t, EventPtr e);
       void exec(timepoint t);
 
 #if 0
@@ -157,7 +144,7 @@ namespace xnorseq {
 
       //realtime safe alloc
       template <typename T>
-      EphemeralEventPtr make_event(Args&&... args);
+      EventPtr make_event(Args&&... args);
 
       template <typename T>
       void update(ObjectRef o, std::string attr, T v) {
@@ -166,6 +153,6 @@ namespace xnorseq {
       }
 #endif
     private:
-      Schedule<EphemeralEventPtr> mSchedule;
+      Schedule<EventPtr> mSchedule;
   };
 }

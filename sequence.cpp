@@ -13,39 +13,46 @@ namespace xnorseq {
       mSeekFunc(t);
   }
 
-  void ExecContext::schedule(timepoint t, EphemeralEventPtr event) {
+  void ExecContext::schedule(timepoint t, EventPtr event) {
     if (mSchedFunc)
       mSchedFunc(t, event);
   }
 
 
-  EphemeralSchedulePlayer::EphemeralSchedulePlayer(EventSchedulePtr schedule) : mSchedule(schedule) {
-  }
-
-  void EphemeralSchedulePlayer::exec(timepoint t, ExecContext context) {
-    auto func = [this, context](Schedule<EventPtr>::ScheduleItemPtr item) {
-      item->item()->exec(item->time(), context);
-    };
-    mSchedule->each(mTimeLast, t, func);
-    mTimeLast = t + 1;
-  }
-
-  SchedulePlayer::SchedulePlayer(EventSchedulePtr s) : Event(), mSchedule(s) {
+  SchedulePlayer::SchedulePlayer(EventSchedulePtr schedule, timepoint start_offset) :
+    mSchedule(schedule),
+    mParentTimeOffset(start_offset)
+  {
   }
 
   void SchedulePlayer::exec(timepoint t, ExecContext context) {
-    //XXX? auto e = context.make_event<EphemeralSchedulePlayer>(mSchedule);
-    auto e = std::make_shared<EphemeralSchedulePlayer>(mSchedule);
-    context.schedule(t, e);
+    auto func = [this, context](Schedule<EventPtr>::ScheduleItemPtr item) {
+      item->item()->exec(item->time(), context);
+    };
+    auto s = mTimeLast - mParentTimeOffset;
+    auto e = t - mParentTimeOffset;
+
+    mSchedule->each(s, e, func);
+    mTimeLast = t + 1;
+
+    context.schedule(context.now() + 1, context.self());
   }
 
-  void Seq::schedule(timepoint t, EphemeralEventPtr e) {
-    auto se = std::make_shared<xnorseq::ScheduleItem<EphemeralEventPtr>>(e, t);
+  StartScheduleEvent::StartScheduleEvent(EventSchedulePtr schedule) : mSchedule(schedule) {
+  }
+
+  void StartScheduleEvent::exec(timepoint t, ExecContext context) {
+    auto p = std::make_shared<xnorseq::SchedulePlayer>(mSchedule, t);
+    context.schedule(t, p);
+  }
+
+  void Seq::schedule(timepoint t, EventPtr e) {
+    auto se = std::make_shared<xnorseq::ScheduleItem<EventPtr>>(e, t);
     mSchedule.schedule(se);
   }
 
   void Seq::exec(timepoint t) {
-    ee_sched_func_t sched_func = [this, t](timepoint tp, EphemeralEventPtr e) {
+    ee_sched_func_t sched_func = [this, t](timepoint tp, EventPtr e) {
       schedule(tp, e);
     };
 

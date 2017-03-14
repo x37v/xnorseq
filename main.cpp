@@ -4,7 +4,7 @@
 using std::cout;
 using std::endl;
 
-class Blah : public xnorseq::EphemeralEvent {
+class Blah : public xnorseq::Event {
   public:
     void exec(xnorseq::timepoint t, xnorseq::ExecContext context) {
       cout << "BLAH " << t << endl;
@@ -31,7 +31,10 @@ int main(int /*argc*/, char** /*argv*/) {
 
   auto f = std::make_shared<Foo>();
   s->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(f, 0));
-  s->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(f, 10));
+  s->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(f, 100));
+
+  auto ss = std::make_shared<xnorseq::StartScheduleEvent>(s);
+  seq.schedule(64, ss);
 
   for (unsigned int i = 0; i < 1024; i+= 64) {
     seq.exec(i);
