@@ -40,8 +40,11 @@ namespace xnorseq {
     };
 
     timepoint time_next = mLocalTime + context.period();
+    bool schedule_done = false;
     if (mLocalTime < mSchedule->length())
       mSchedule->each(mLocalTime, std::min(time_next, mSchedule->length() - 1), func);
+    else
+      schedule_done = true;
 
     while (auto ev = mLocalSchedule.pop_until(time_next)) {
       context.self(ev->item());
@@ -54,7 +57,11 @@ namespace xnorseq {
     //XXX maybe mSchedule should have a 'length' that can be unrelated to the actual
     //length [if desired] and after that we no longer read new items from it
     //and then just execute the local schedule until it is done then no longer reschedule self
-    context.schedule(t + context.period(), context.self());
+    if (!schedule_done || mLocalSchedule.size() != 0) {
+      context.schedule(t + context.period(), context.self());
+    } else {
+      cout << "removing from schedule" << endl;
+    }
   }
 
   StartScheduleEvent::StartScheduleEvent(EventSchedulePtr schedule) : mSchedule(schedule) {

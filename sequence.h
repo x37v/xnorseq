@@ -113,6 +113,8 @@ namespace xnorseq {
 
       timedur length() const { return mLength; }
       void length(timedur v) { mLength = std::max(static_cast<timedur>(0), v); }
+
+      size_t size() const { return mSchedule.size(); }
     private:
       //XXX tmp
       std::deque<ScheduleItemPtr> mSchedule;

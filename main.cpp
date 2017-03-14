@@ -8,7 +8,6 @@ class Blah : public xnorseq::Event {
   public:
     void exec(xnorseq::timepoint t, xnorseq::ExecContext context) {
       cout << "BLAH " << t << endl;
-      context.schedule(context.now() + 10, context.self());
     }
 };
 
@@ -23,8 +22,15 @@ class Foo : public xnorseq::Event {
   public:
     void exec(xnorseq::timepoint t, xnorseq::ExecContext context) {
       cout << "FOO " << t << endl;
-      auto e = std::make_shared<Baz>();
-      context.schedule(t, e);
+      {
+        auto e = std::make_shared<Baz>();
+        context.schedule(t, e);
+        context.schedule(t + 2, e);
+      }
+      {
+        auto e = std::make_shared<Blah>();
+        context.schedule(t, e);
+      }
     }
 };
 
@@ -35,7 +41,7 @@ int main(int /*argc*/, char** /*argv*/) {
   seq.schedule(32, b);
 
 
-  auto s = std::make_shared<xnorseq::EventSchedule>();
+  auto s = std::make_shared<xnorseq::EventSchedule>(20);
 
   auto f = std::make_shared<Foo>();
   s->schedule(std::make_shared<xnorseq::ScheduleItem<xnorseq::EventPtr>>(f, 0));
