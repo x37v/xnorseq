@@ -5,6 +5,11 @@ using std::cout;
 using std::endl;
 
 namespace xnorseq {
+  timepoint Clock::now() const { return mNow; }
+  void Clock::now(timepoint v) { mNow = v; }
+  timedur Clock::ticks_per_second() const { return mTicksPerSecond; }
+  void Clock::ticks_per_second(timedur v) { mTicksPerSecond = v; }
+
   ExecContext::ExecContext(timepoint now, timedur exec_period, sched_func_t sched_func, seek_func_t seek_func) :
     mNow(now),
     mPeriod(exec_period),

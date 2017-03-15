@@ -23,6 +23,32 @@ namespace xnorseq {
   typedef std::function<void(timepoint, EventPtr)> sched_func_t;
   typedef std::function<void(timepoint)> seek_func_t;
 
+  class Clock {
+    public:
+      timepoint now() const;
+      void now(timepoint v);
+
+      timedur ticks_per_second() const;
+      void ticks_per_second(timedur v);
+
+      //XXX need to figure out if a duration will happen in the next X system ticks
+      //so we can reschedule for the next period or not..
+      timedur to_system_ticks(timedir v);
+    private:
+      timepoint mNow;
+      timedur mTicksPerSecond;
+  };
+
+  //XXX need to be able to schedule events with a clock
+  //
+  //need 'countdown' events that always happen after X amount of 'time' [beats, measures, seconds]
+  //no matter where the seek happens.. and timepoint events which happen AT time X, and maybe get
+  //removed from the schedule on a seek?
+  //
+  //'countdown' would be like notes with duration
+  //'at' would be like loop points
+
+
   //context should include ability to:
   //update parent schedule location ['next' exec]
   //create and add new events to schedule
@@ -116,8 +142,7 @@ namespace xnorseq {
 
       size_t size() const { return mSchedule.size(); }
     private:
-      //XXX tmp
-      std::deque<ScheduleItemPtr> mSchedule;
+      std::deque<ScheduleItemPtr> mSchedule; //XXX TEMP, replace with non allocating double linked list
       timedur mLength;
   };
 
