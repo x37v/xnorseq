@@ -14,7 +14,7 @@ namespace xnorseq {
 
   //XXX
   timedur Clock::to_system_ticks(timedur v) { return v; } 
-  timedur system_to_ticks(timedur system_ticks) { return system_ticks; }
+  timedur Clock::system_to_ticks(timedur system_ticks) { return system_ticks; }
 
   ExecContext::ExecContext(timepoint now, timedur exec_period, sched_func_t sched_func, seek_func_t seek_func) :
     mNow(now),
