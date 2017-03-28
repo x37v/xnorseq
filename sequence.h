@@ -8,32 +8,35 @@ namespace xnorseq {
   typedef long timepoint;
   typedef long timedur;
 
+  class Clock;
   class Event;
   //class ScheduleItem;
   //class Schedule;
   class SchedulePlayer;
   class Seq;
 
+  typedef std::shared_ptr<Clock> ClockPtr;
   typedef std::shared_ptr<Event> EventPtr;
-  //typedef std::shared_ptr<ScheduleItem> ScheduleItemPtr;
-  //typedef std::shared_ptr<Schedule> SchedulePtr;
   typedef std::shared_ptr<SchedulePlayer> SchedulePlayerPtr;
   typedef std::shared_ptr<Seq> SeqPtr;
 
-  typedef std::function<void(timepoint, EventPtr)> sched_func_t;
+  typedef std::function<void(timepoint, EventPtr, ClockPtr)> sched_func_t;
   typedef std::function<void(timepoint)> seek_func_t;
 
   class Clock {
     public:
-      timepoint now() const;
-      void now(timepoint v);
+      virtual void update(timedur dur);
+      virtual timepoint now() const;
+      virtual void now(timepoint v);
 
-      timedur ticks_per_second() const;
-      void ticks_per_second(timedur v);
+      virtual timedur ticks_per_second() const;
+      virtual void ticks_per_second(timedur v);
 
       //XXX need to figure out if a duration will happen in the next X system ticks
       //so we can reschedule for the next period or not..
-      timedur to_system_ticks(timedir v);
+      virtual timedur to_system_ticks(timedur v);
+
+      virtual timedur system_to_ticks(timedur system_ticks);
     private:
       timepoint mNow;
       timedur mTicksPerSecond;
@@ -47,6 +50,16 @@ namespace xnorseq {
   //
   //'countdown' would be like notes with duration
   //'at' would be like loop points
+  //
+  //
+  //
+  //
+  
+  /*
+   * XXX for each period, for each clock, calculate the current tick and the tick at the start of the next period.
+   * then for each thing evaluated with that clock during that period you can delay until the next period if
+   * it isn't within that tick range.. 
+   */
 
 
   //context should include ability to:
@@ -70,8 +83,9 @@ namespace xnorseq {
 
       //might not do anything
       void seek(timepoint t);
+
       //can reschedule self
-      void schedule(timepoint t, EventPtr event);
+      void schedule(timepoint t, EventPtr event, ClockPtr clock = nullptr);
 
       //XXX make into realtime safe alloc
       template <typename T, class... Args>
@@ -170,7 +184,9 @@ namespace xnorseq {
 
   class Seq {
     public:
-      void schedule(timepoint t, EventPtr e);
+      Seq();
+
+      void schedule(timepoint t, EventPtr e, ClockPtr clock = nullptr);
       void exec(timepoint t, timedur period);
 
 #if 0
@@ -190,5 +206,7 @@ namespace xnorseq {
 #endif
     private:
       EventSchedule mLocalSchedule;
+      std::vector<ClockPtr> mClocks; //XXX make realtime safe
+      ClockPtr mDefaultClock;
   };
 }

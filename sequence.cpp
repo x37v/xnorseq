@@ -5,10 +5,16 @@ using std::cout;
 using std::endl;
 
 namespace xnorseq {
+
+  void Clock::update(timedur dur) { mNow += dur; }
   timepoint Clock::now() const { return mNow; }
   void Clock::now(timepoint v) { mNow = v; }
   timedur Clock::ticks_per_second() const { return mTicksPerSecond; }
   void Clock::ticks_per_second(timedur v) { mTicksPerSecond = v; }
+
+  //XXX
+  timedur Clock::to_system_ticks(timedur v) { return v; } 
+  timedur system_to_ticks(timedur system_ticks) { return system_ticks; }
 
   ExecContext::ExecContext(timepoint now, timedur exec_period, sched_func_t sched_func, seek_func_t seek_func) :
     mNow(now),
@@ -21,9 +27,9 @@ namespace xnorseq {
       mSeekFunc(t);
   }
 
-  void ExecContext::schedule(timepoint t, EventPtr event) {
+  void ExecContext::schedule(timepoint t, EventPtr event, ClockPtr clock) {
     if (mSchedFunc)
-      mSchedFunc(t, event);
+      mSchedFunc(t, event, clock);
   }
 
 
@@ -33,7 +39,7 @@ namespace xnorseq {
   }
 
   void SchedulePlayer::exec(timepoint t, ExecContext context) {
-    sched_func_t sched_func = [this](timepoint tp, EventPtr e) {
+    sched_func_t sched_func = [this](timepoint tp, EventPtr e, ClockPtr clock) {
       auto se = std::make_shared<xnorseq::ScheduleItem<EventPtr>>(e, tp);
       mLocalSchedule.schedule(se);
     };
@@ -79,14 +85,22 @@ namespace xnorseq {
     context.schedule(t, p);
   }
 
-  void Seq::schedule(timepoint t, EventPtr e) {
+  Seq::Seq() {
+    mDefaultClock = std::make_shared<Clock>();
+    mClocks.push_back(mDefaultClock);
+  }
+
+  void Seq::schedule(timepoint t, EventPtr e, ClockPtr clock) {
+    if (!clock)
+      clock = mDefaultClock;
+
     auto se = std::make_shared<xnorseq::ScheduleItem<EventPtr>>(e, t);
     mLocalSchedule.schedule(se);
   }
 
   void Seq::exec(timepoint t, timedur period) {
-    sched_func_t sched_func = [this, t](timepoint tp, EventPtr e) {
-      schedule(tp, e);
+    sched_func_t sched_func = [this, t](timepoint tp, EventPtr e, ClockPtr clock) {
+      schedule(tp, e, clock);
     };
 
     ExecContext context(t, period, sched_func, nullptr); //seek doesn't make sense in this context
@@ -94,6 +108,9 @@ namespace xnorseq {
       context.self(e->item());
       e->item()->exec(e->time(), context);
     }
+
+    for (auto c: mClocks)
+      c->update(period);
   }
 
 }
