@@ -1,6 +1,8 @@
+type TimePoint = u64;
+
 trait Schedule {
-  fn schedule(&mut self, t: u64, f: Box<Fn(&mut Schedule)>) -> ();
-  fn now(&self) -> u64;
+  fn schedule(&mut self, t: TimePoint, f: Box<Fn(&mut Schedule)>) -> ();
+  fn now(&self) -> TimePoint;
 }
 
 type SeqFun = Box<Fn(&mut Schedule)>;
@@ -15,19 +17,19 @@ struct Seq {
 }
 
 impl Schedule for Seq {
-  fn schedule(&mut self, t: u64, f: SeqFun) -> () {
+  fn schedule(&mut self, t: TimePoint, f: SeqFun) -> () {
     self.items.push(f);
   }
-  fn now(&self) -> u64 {
+  fn now(&self) -> TimePoint {
     0
   }
 }
 
 impl Schedule for RuntimeSeq {
-  fn schedule(&mut self, t: u64, f: SeqFun) -> () {
+  fn schedule(&mut self, t: TimePoint, f: SeqFun) -> () {
     self.items.push(f);
   }
-  fn now(&self) -> u64 {
+  fn now(&self) -> TimePoint {
     0
   }
 }
@@ -37,12 +39,12 @@ impl RuntimeSeq {
     RuntimeSeq{items:Vec::new()}
   }
 
+
   fn exec(&mut self) {
-    let mut c = RuntimeSeq::new();
-    for f in &self.items {
-      f(&mut c);
+    let mut iter = self.items.iter_mut();
+    while let Some(f) = iter.next() {
+//      f(self);
     }
-    self.items.append(&mut c.items);
   }
 }
 
@@ -51,12 +53,11 @@ impl Seq {
     Seq{items:Vec::new(), runtime: RuntimeSeq::new()}
   }
 
-  fn exec(&self) {
-    let mut c = RuntimeSeq::new();
+  fn exec(&mut self) {
     for f in &self.items {
-      f(&mut c);
+      f(&mut self.runtime);
     }
-    c.exec();
+    self.runtime.exec();
   }
 }
 
