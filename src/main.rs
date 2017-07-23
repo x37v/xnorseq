@@ -1,13 +1,13 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 type TimePoint = u64;
 
 trait Schedule {
-  fn schedule(&mut self, t: TimePoint, f: Rc<Fn(&mut Schedule)>) -> ();
+  fn schedule(&mut self, t: TimePoint, f: Arc<Fn(&mut Schedule)>) -> ();
   fn now(&self) -> TimePoint;
 }
 
-type SeqFun = Rc<Fn(&mut Schedule)>;
+type SeqFun = Arc<Fn(&mut Schedule)>;
 
 struct RuntimeSeq {
   items: Vec<SeqFun>,
@@ -71,16 +71,16 @@ fn doit(context: &mut Schedule) {
 
 fn doit2(context: &mut Schedule) {
   println!("doit2: {}", context.now());
-  context.schedule(2000, Rc::new(doit));
+  context.schedule(2000, Arc::new(doit));
 }
 
 fn main() {
   let mut c = Seq::new();
-  c.schedule(23, Rc::new(doit));
-  c.schedule(34, Rc::new(doit2));
-  c.schedule(10, Rc::new(|context:  &mut Schedule| {
+  c.schedule(23, Arc::new(doit));
+  c.schedule(34, Arc::new(doit2));
+  c.schedule(10, Arc::new(|context:  &mut Schedule| {
     println!("outer dude: {}", context.now());
-    context.schedule(43, Rc::new(|context: &mut Schedule| {
+    context.schedule(43, Arc::new(|context: &mut Schedule| {
       println!("inner dude");
     }));
   }));
