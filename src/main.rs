@@ -8,12 +8,14 @@ trait Schedule {
 type SeqFun = Box<Fn(&mut Schedule)>;
 
 struct RuntimeSeq {
-  items: Vec<SeqFun>
+  items: Vec<SeqFun>,
+  now: TimePoint
 }
 
 struct Seq {
   items: Vec<SeqFun>,
-  runtime: RuntimeSeq
+  runtime: RuntimeSeq,
+  now: TimePoint
 }
 
 impl Schedule for Seq {
@@ -21,7 +23,7 @@ impl Schedule for Seq {
     self.items.push(f);
   }
   fn now(&self) -> TimePoint {
-    0
+    self.now
   }
 }
 
@@ -30,27 +32,26 @@ impl Schedule for RuntimeSeq {
     self.items.push(f);
   }
   fn now(&self) -> TimePoint {
-    0
+    self.now
   }
 }
 
 impl RuntimeSeq {
   fn new() -> RuntimeSeq {
-    RuntimeSeq{items:Vec::new()}
+    RuntimeSeq{items:Vec::new(), now: 0}
   }
-
 
   fn exec(&mut self) {
     let mut iter = self.items.iter_mut();
     while let Some(f) = iter.next() {
-//      f(self);
+      // XXX doesn't work f(self);
     }
   }
 }
 
 impl Seq {
   fn new() -> Seq {
-    Seq{items:Vec::new(), runtime: RuntimeSeq::new()}
+    Seq{items:Vec::new(), runtime: RuntimeSeq::new(), now: 0}
   }
 
   fn exec(&mut self) {
