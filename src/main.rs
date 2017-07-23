@@ -1,11 +1,13 @@
+use std::rc::Rc;
+
 type TimePoint = u64;
 
 trait Schedule {
-  fn schedule(&mut self, t: TimePoint, f: Box<Fn(&mut Schedule)>) -> ();
+  fn schedule(&mut self, t: TimePoint, f: Rc<Fn(&mut Schedule)>) -> ();
   fn now(&self) -> TimePoint;
 }
 
-type SeqFun = Box<Fn(&mut Schedule)>;
+type SeqFun = Rc<Fn(&mut Schedule)>;
 
 struct RuntimeSeq {
   items: Vec<SeqFun>,
@@ -42,9 +44,10 @@ impl RuntimeSeq {
   }
 
   fn exec(&mut self) {
-    let mut iter = self.items.iter_mut();
+    let mut v = self.items.clone();
+    let mut iter = v.iter_mut();
     while let Some(f) = iter.next() {
-      // XXX doesn't work f(self);
+      f(self);
     }
   }
 }
@@ -68,16 +71,16 @@ fn doit(context: &mut Schedule) {
 
 fn doit2(context: &mut Schedule) {
   println!("doit2: {}", context.now());
-  context.schedule(2000, Box::new(doit));
+  context.schedule(2000, Rc::new(doit));
 }
 
 fn main() {
   let mut c = Seq::new();
-  c.schedule(23, Box::new(doit));
-  c.schedule(34, Box::new(doit2));
-  c.schedule(10, Box::new(|context:  &mut Schedule| {
+  c.schedule(23, Rc::new(doit));
+  c.schedule(34, Rc::new(doit2));
+  c.schedule(10, Rc::new(|context:  &mut Schedule| {
     println!("outer dude: {}", context.now());
-    context.schedule(43, Box::new(|context: &mut Schedule| {
+    context.schedule(43, Rc::new(|context: &mut Schedule| {
       println!("inner dude");
     }));
   }));
