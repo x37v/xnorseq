@@ -5,12 +5,23 @@
 using std::cout;
 using std::endl;
 
+class Blah {
+  public:
+    void operator()(xnorseq::SchedulerPtr p) {
+      cout << "ASDFASDF" << endl;
+    }
+};
+
 int main(int arc, char * argv[]) {
   auto s = xnorseq::sequencer();
   s->schedule(0, [](xnorseq::SchedulerPtr p) {
     cout << "YEAH: " << p->now() << endl;
   });
 
+  {
+    auto b = s->make_sched<Blah>();
+    s->schedule(23, *b);
+  }
   {
     auto x = std::make_shared<std::atomic<xnorseq::TimePoint>>(23);
 
@@ -30,6 +41,7 @@ int main(int arc, char * argv[]) {
     };
     s->schedule(2, outer);
   }
+
 
   s->exec();
 
