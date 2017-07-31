@@ -103,22 +103,21 @@ impl Seq {
 
   fn exec(&mut self, ticks: Ticks) -> () {
     let mut context = Seq::new();
-    match Arc::get_mut(&mut self.schedule) {
-      Some(s) => {
-        //context shares the schedule, should allow new additions to schedule
-        for _ in 0..ticks {
-          context.now = self.now;
-          while let Some(n) = s.item_before(context.now) {
-            (n.func)(&mut context);
-          }
-          self.now += 1;
-          if let Some(o) = Arc::get_mut(&mut context.schedule) {
-            s.append(o);
-          }
+    if let Some(s) = Arc::get_mut(&mut self.schedule) {
+      //context shares the schedule, should allow new additions to schedule
+      for _ in 0..ticks {
+        context.now = self.now;
+        while let Some(n) = s.item_before(context.now) {
+          (n.func)(&mut context);
+        }
+        self.now += 1;
+        if let Some(o) = Arc::get_mut(&mut context.schedule) {
+          s.append(o);
         }
       }
-      None => { println!("ERROR"); }
-    };
+    } else {
+      println!("ERROR"); 
+    }
   }
 }
 
