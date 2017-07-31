@@ -140,11 +140,12 @@ fn main() {
     }));
   }));
 
+  // tests that the inner function will happen 1 tick later if it is scheduled before 'now'
   c.schedule(30, w!(move |context: &mut Scheduler| {
     let n = context.now();
-    println!("outer fn {}", n);
-    context.schedule(n + 20, w!(move |context: &mut Scheduler| {
-      println!("inner fn {}", context.now());
+    println!("outer fn with earlier inner {}", n);
+    context.schedule(n - 3, w!(move |context: &mut Scheduler| {
+      println!("earier inner {}", context.now());
     }));
   }));
 
