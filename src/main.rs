@@ -74,6 +74,12 @@ impl Schedule {
     }
     self.items.pop()
   }
+
+  fn append(&mut self, other: &mut Schedule) {
+    while let Some(n) = other.items.pop() {
+      self.schedule(n.time, n.func.clone());
+    }
+  }
 }
 
 
@@ -96,18 +102,18 @@ impl Seq {
   }
 
   fn exec(&mut self, ticks: Ticks) -> () {
+    let mut context = Seq::new();
     match Arc::get_mut(&mut self.schedule) {
       Some(s) => {
         //context shares the schedule, should allow new additions to schedule
         for _ in 0..ticks {
-          let mut context = Seq::new();
           context.now = self.now;
           while let Some(n) = s.item_before(context.now) {
             (n.func)(&mut context);
           }
           self.now += 1;
-          for x in &context.schedule.items {
-            s.schedule(x.time, x.func.clone());
+          if let Some(o) = Arc::get_mut(&mut context.schedule) {
+            s.append(o);
           }
         }
       }
