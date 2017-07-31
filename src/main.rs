@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::sync::Arc;
 
 macro_rules! w {
@@ -6,6 +8,7 @@ macro_rules! w {
 
 type TimePoint = u64;
 type Ticks = u64;
+type ID = u64;
 type SchedFun = Fn(&mut Scheduler);
 type SchedFunPtr = Arc<SchedFun>;
 
@@ -14,8 +17,35 @@ trait Scheduler {
   fn now(&self) -> TimePoint;
 }
 
+#[derive(Clone)]
+struct ScheduleNode {
+  time: TimePoint,
+  func: SchedFunPtr,
+  id: ID
+}
+
+impl Ord for ScheduleNode {
+  fn cmp(&self, other: &ScheduleNode) -> Ordering {
+    other.time.cmp(&self.time)
+  }
+}
+
+impl PartialOrd for ScheduleNode {
+  fn partial_cmp(&self, other: &ScheduleNode) -> Option<Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl PartialEq for ScheduleNode {
+  fn eq(&self, other: &ScheduleNode) -> bool {
+    self.id == other.id
+  }
+}
+impl Eq for ScheduleNode {}
+
 struct Schedule {
-  items: Vec<(TimePoint, SchedFunPtr)>
+  items: BinaryHeap<ScheduleNode>,
+  id: ID
 }
 
 struct Seq {
@@ -25,21 +55,24 @@ struct Seq {
 
 impl Schedule {
   fn new() -> Schedule {
-    Schedule{items: Vec::new()}
+    Schedule{items: BinaryHeap::new(), id:0}
   }
 
   fn schedule(&mut self, t: TimePoint, f: SchedFunPtr) -> () {
-    self.items.push((t, f));
+    self.items.push(ScheduleNode{id:self.id, func:f, time:t});
+    self.id += 1
   }
 
-  fn items_at(&self, t: TimePoint) -> Vec<SchedFunPtr> {
-    let mut v = Vec::new();
-    for &(ref ft, ref f) in &self.items {
-      if t == *ft {
-        v.push(f.clone())
-      }
+  fn item_before(&mut self, t: TimePoint) -> Option<ScheduleNode> {
+    match self.items.peek() {
+      Some(n) => { 
+        if n.time > t {
+          return None;
+        }
+      },
+      None => { return None; }
     }
-    v
+    self.items.pop()
   }
 }
 
@@ -63,15 +96,22 @@ impl Seq {
   }
 
   fn exec(&mut self, ticks: Ticks) -> () {
-    //context shares the schedule, should allow new additions to schedule
-    let mut context = Seq{now:self.now, schedule: self.schedule.clone()};
-    for _ in 0..ticks {
-      let mut v = self.schedule.items_at(self.now);
-      context.now = self.now;
-      for f in v.iter_mut() {
-        f(&mut context);
+    match Arc::get_mut(&mut self.schedule) {
+      Some(s) => {
+        //context shares the schedule, should allow new additions to schedule
+        for _ in 0..ticks {
+          let mut context = Seq::new();
+          context.now = self.now;
+          while let Some(n) = s.item_before(context.now) {
+            (n.func)(&mut context);
+          }
+          self.now += 1;
+          for x in &context.schedule.items {
+            s.schedule(x.time, x.func.clone());
+          }
+        }
       }
-      self.now += 1
+      None => { println!("ERROR"); }
     };
   }
 }
@@ -90,11 +130,30 @@ fn doit2(context: &mut Scheduler) {
 fn main() {
   let mut c = Seq::new();
   c.schedule(10, w!(move |context: &mut Scheduler| {
-    println!("moved fn {}", context.now());
+    println!("solo fn {}", context.now());
+  }));
+
+  c.schedule(1, w!(move |context: &mut Scheduler| {
+    println!("outer fn {}", context.now());
+    context.schedule(2, w!(move |context: &mut Scheduler| {
+      println!("inner fn {}", context.now());
+    }));
+  }));
+
+  c.schedule(30, w!(move |context: &mut Scheduler| {
+    let n = context.now();
+    println!("outer fn {}", n);
+    context.schedule(n + 20, w!(move |context: &mut Scheduler| {
+      println!("inner fn {}", context.now());
+    }));
   }));
 
   c.schedule(23, w!(doit));
   c.schedule(34, w!(doit2));
+  c.exec(20);
+  c.exec(20);
+  c.exec(20);
+  c.exec(20);
   c.exec(20);
   c.exec(20);
 }
