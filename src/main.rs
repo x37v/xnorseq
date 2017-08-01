@@ -150,7 +150,11 @@ fn main() {
     let n = context.now();
     println!("outer fn with earlier inner {}", n);
     context.schedule(n - 3, w!(move |context: &mut Player| {
-      println!("earier inner {}", context.now());
+      let n = context.now();
+      println!("earlier inner {}", n);
+      context.schedule(n - 3, w!(move |context: &mut Player| {
+        println!("earlier inner 2 {}", context.now());
+      }));
     }));
   }));
 
