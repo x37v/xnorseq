@@ -79,6 +79,7 @@ impl Schedule {
     while let Some(n) = other.items.pop() {
       self.schedule(n.time, n.func.clone());
     }
+    //could use self.items.append(&mut other.items); but the ids would conflict
   }
 }
 
