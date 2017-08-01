@@ -9,42 +9,42 @@ macro_rules! w {
 type TimePoint = u64;
 type Ticks = u64;
 type ID = u64;
-type SchedFun = Fn(&mut Scheduler);
-type SchedFunPtr = Arc<SchedFun>;
+type SFn = Fn(&mut Player);
+type SFnPtr = Arc<SFn>;
 
-trait Scheduler {
-  fn schedule(&mut self, t: TimePoint, f: SchedFunPtr) -> ();
+trait Player {
+  fn schedule(&mut self, t: TimePoint, f: SFnPtr) -> ();
   fn now(&self) -> TimePoint;
 }
 
 #[derive(Clone)]
-struct ScheduleNode {
+struct SNode {
   time: TimePoint,
-  func: SchedFunPtr,
+  func: SFnPtr,
   id: ID
 }
 
-impl Ord for ScheduleNode {
-  fn cmp(&self, other: &ScheduleNode) -> Ordering {
+impl Ord for SNode {
+  fn cmp(&self, other: &SNode) -> Ordering {
     other.time.cmp(&self.time)
   }
 }
 
-impl PartialOrd for ScheduleNode {
-  fn partial_cmp(&self, other: &ScheduleNode) -> Option<Ordering> {
+impl PartialOrd for SNode {
+  fn partial_cmp(&self, other: &SNode) -> Option<Ordering> {
     Some(self.cmp(other))
   }
 }
 
-impl PartialEq for ScheduleNode {
-  fn eq(&self, other: &ScheduleNode) -> bool {
+impl PartialEq for SNode {
+  fn eq(&self, other: &SNode) -> bool {
     self.id == other.id
   }
 }
-impl Eq for ScheduleNode {}
+impl Eq for SNode {}
 
 struct Schedule {
-  items: BinaryHeap<ScheduleNode>,
+  items: BinaryHeap<SNode>,
   id: ID
 }
 
@@ -58,12 +58,12 @@ impl Schedule {
     Schedule{items: BinaryHeap::new(), id:0}
   }
 
-  fn schedule(&mut self, t: TimePoint, f: SchedFunPtr) -> () {
-    self.items.push(ScheduleNode{id:self.id, func:f, time:t});
+  fn schedule(&mut self, t: TimePoint, f: SFnPtr) -> () {
+    self.items.push(SNode{id:self.id, func:f, time:t});
     self.id += 1
   }
 
-  fn item_before(&mut self, t: TimePoint) -> Option<ScheduleNode> {
+  fn item_before(&mut self, t: TimePoint) -> Option<SNode> {
     match self.items.peek() {
       Some(n) => { 
         if n.time > t {
@@ -83,8 +83,8 @@ impl Schedule {
 }
 
 
-impl Scheduler for Seq {
-  fn schedule(&mut self, t: TimePoint, f: SchedFunPtr) -> () {
+impl Player for Seq {
+  fn schedule(&mut self, t: TimePoint, f: SFnPtr) -> () {
     match Arc::get_mut(&mut self.schedule) {
       Some(s) => { s.schedule(t, f); }
       None => { println!("ERROR"); }
@@ -121,41 +121,41 @@ impl Seq {
   }
 }
 
-fn doit(context: &mut Scheduler) {
+fn doit(context: &mut Player) {
   println!("doit: {}", context.now());
 }
 
-fn doit2(context: &mut Scheduler) {
+fn doit2(context: &mut Player) {
   let n = context.now();
   println!("doit2: {}", n);
   context.schedule(n + 4, w!(doit));
 }
 
-
 fn main() {
   let mut c = Seq::new();
-  c.schedule(10, w!(move |context: &mut Scheduler| {
+  c.schedule(10, w!(move |context: &mut Player| {
     println!("solo fn {}", context.now());
   }));
 
-  c.schedule(1, w!(move |context: &mut Scheduler| {
+  c.schedule(1, w!(move |context: &mut Player| {
     println!("outer fn {}", context.now());
-    context.schedule(2, w!(move |context: &mut Scheduler| {
+    context.schedule(2, w!(move |context: &mut Player| {
       println!("inner fn {}", context.now());
     }));
   }));
 
   // tests that the inner function will happen 1 tick later if it is scheduled before 'now'
-  c.schedule(30, w!(move |context: &mut Scheduler| {
+  c.schedule(30, w!(move |context: &mut Player| {
     let n = context.now();
     println!("outer fn with earlier inner {}", n);
-    context.schedule(n - 3, w!(move |context: &mut Scheduler| {
+    context.schedule(n - 3, w!(move |context: &mut Player| {
       println!("earier inner {}", context.now());
     }));
   }));
 
   c.schedule(23, w!(doit));
   c.schedule(34, w!(doit2));
+
   c.exec(20);
   c.exec(20);
   c.exec(20);
