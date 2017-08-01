@@ -5,7 +5,7 @@ A work in progress function scheduler.
 trying rust this time... new to rust..
 
 
-## some psudo-code for the interface
+## some pseudo-code for the interface
 
 `schedule(time, function)`
 
