@@ -38,6 +38,7 @@ impl PartialEq for SNode {
     self.id == other.id
   }
 }
+
 impl Eq for SNode {}
 
 struct Schedule {
@@ -79,7 +80,6 @@ impl Schedule {
     //could use self.items.append(&mut other.items); but the ids would conflict
   }
 }
-
 
 impl Player for Seq {
   fn schedule(&mut self, t: TimePoint, f: SFnPtr) -> () {
