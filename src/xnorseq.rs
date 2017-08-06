@@ -2,15 +2,20 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
 
-type TimePoint = u64;
-type Ticks = u64;
+pub type TimePoint = u64;
+pub type Ticks = u64;
+pub type SFn = Fn(&mut Player);
+pub type SFnPtr = Arc<SFn>;
+
 type ID = u64;
-type SFn = Fn(&mut Player);
-type SFnPtr = Arc<SFn>;
 
 pub trait Player {
   fn schedule(&mut self, t: TimePoint, f: SFnPtr) -> ();
   fn now(&self) -> TimePoint;
+}
+
+pub fn alloc<T>(v: T) -> Arc<T> {
+  Arc::new(v)
 }
 
 #[derive(Clone)]
