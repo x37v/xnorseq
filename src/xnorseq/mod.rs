@@ -21,16 +21,16 @@ pub fn alloc<T>(v: T) -> Arc<T> {
 }
 
 #[allow(dead_code)]
-pub enum ValueOrValueFn<T: Clone> {
-  Value(T),
-  ValueFn(Arc<Fn(&mut Player) -> T>)
+pub enum ValOrVFn<T: Clone> {
+  Val(T),
+  ValFn(Arc<Fn(&mut Player) -> T>)
 }
 
 #[allow(dead_code)]
-pub fn resolve<T: Clone>(v: &ValueOrValueFn<T>, player: &mut Player) -> T {
+pub fn resolve<T: Clone>(v: &ValOrVFn<T>, player: &mut Player) -> T {
   match v {
-    &ValueOrValueFn::Value(ref v) => { v.clone() },
-    &ValueOrValueFn::ValueFn(ref f) => { f(player) }
+    &ValOrVFn::Val(ref v) => { v.clone() },
+    &ValOrVFn::ValFn(ref f) => { f(player) }
   }
 }
 
