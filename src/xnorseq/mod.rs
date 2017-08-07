@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
 
+pub mod osc;
+
 pub type TimePoint = u64;
 pub type Ticks = u64;
 pub type SFn = Fn(&mut Player);
@@ -16,6 +18,20 @@ pub trait Player {
 
 pub fn alloc<T>(v: T) -> Arc<T> {
   Arc::new(v)
+}
+
+#[allow(dead_code)]
+pub enum ValueOrValueFn<T: Clone> {
+  Value(T),
+  ValueFn(Arc<Fn(&mut Player) -> T>)
+}
+
+#[allow(dead_code)]
+pub fn resolve<T: Clone>(v: &ValueOrValueFn<T>, player: &mut Player) -> T {
+  match v {
+    &ValueOrValueFn::Value(ref v) => { v.clone() },
+    &ValueOrValueFn::ValueFn(ref f) => { f(player) }
+  }
 }
 
 #[derive(Clone)]

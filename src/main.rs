@@ -43,6 +43,8 @@ fn main() {
   c.schedule(23, alloc(doit));
   c.schedule(34, alloc(doit2));
 
+  c.schedule(54, alloc(xnorseq::osc::oscfunc));
+
   c.exec(20);
   c.exec(20);
   c.exec(20);
